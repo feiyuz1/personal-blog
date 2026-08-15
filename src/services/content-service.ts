@@ -62,11 +62,11 @@ type ProjectRow = {
   projectUrl: string | null;
 };
 
-async function loadContentBlock<K extends ContentBlockKey>(key: K): Promise<ContentBlockMap[K]> {
+async function loadContentBlock<K extends ContentBlockKey>(key: K): Promise<ContentBlockMap[K] | null> {
   const block = await prisma.contentBlock.findUnique({ where: { key } });
 
   if (!block) {
-    throw new Error(`Missing content block: ${key}`);
+    return null;
   }
 
   return block.data as unknown as ContentBlockMap[K];
@@ -156,8 +156,28 @@ function toProjectDetail(project: ProjectRow): ProjectDetail {
   };
 }
 
-export async function getSiteConfig() {
-  return loadContentBlock(CONTENT_BLOCK_KEYS.siteConfig);
+const DEFAULT_SITE_CONFIG: SiteConfig = {
+  title: "",
+  subtitle: "",
+  description: "",
+  heroLabel: "",
+  navItems: [],
+  footerLinks: [],
+  stats: [],
+};
+
+const DEFAULT_PROFILE_INFO: ProfileInfo = {
+  name: "",
+  title: "",
+  avatar: "",
+  bio: "",
+  location: "",
+  experience: "",
+  education: "",
+};
+
+export async function getSiteConfig(): Promise<SiteConfig> {
+  return (await loadContentBlock(CONTENT_BLOCK_KEYS.siteConfig)) ?? DEFAULT_SITE_CONFIG;
 }
 
 export async function listFeaturedPosts(): Promise<PostSummary[]> {
@@ -441,24 +461,24 @@ export async function getProjectBySlug(slug: string): Promise<ProjectDetail | nu
   });
 }
 
-export async function getAboutSections() {
-  return loadContentBlock(CONTENT_BLOCK_KEYS.aboutSections);
+export async function getAboutSections(): Promise<AboutSection[]> {
+  return (await loadContentBlock(CONTENT_BLOCK_KEYS.aboutSections)) ?? [];
 }
 
-export async function getContactChannels() {
-  return loadContentBlock(CONTENT_BLOCK_KEYS.contactChannels);
+export async function getContactChannels(): Promise<ContactChannel[]> {
+  return (await loadContentBlock(CONTENT_BLOCK_KEYS.contactChannels)) ?? [];
 }
 
-export async function getProfileInfo() {
-  return loadContentBlock(CONTENT_BLOCK_KEYS.profileInfo);
+export async function getProfileInfo(): Promise<ProfileInfo> {
+  return (await loadContentBlock(CONTENT_BLOCK_KEYS.profileInfo)) ?? DEFAULT_PROFILE_INFO;
 }
 
-export async function getTechStacks() {
-  return loadContentBlock(CONTENT_BLOCK_KEYS.techStacks);
+export async function getTechStacks(): Promise<TechStackCategory[]> {
+  return (await loadContentBlock(CONTENT_BLOCK_KEYS.techStacks)) ?? [];
 }
 
-export async function getTimeline() {
-  return loadContentBlock(CONTENT_BLOCK_KEYS.timeline);
+export async function getTimeline(): Promise<TimelineItem[]> {
+  return (await loadContentBlock(CONTENT_BLOCK_KEYS.timeline)) ?? [];
 }
 
 function formatDate(date: Date): string {
