@@ -1,8 +1,14 @@
-import { ok } from "@/lib/api-response";
+import { ok, unauthorized } from "@/lib/api-response";
+import { getAdminSession } from "@/lib/auth/session";
 import { listAllCategories, listAllTags } from "@/services/admin-service";
 
 /** GET /api/admin/categories - 获取后台界面所需的分类和标签 */
 export async function GET() {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
   try {
     const [categories, tags] = await Promise.all([listAllCategories(), listAllTags()]);
 

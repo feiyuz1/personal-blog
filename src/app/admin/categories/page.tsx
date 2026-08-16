@@ -1,4 +1,5 @@
 import { AdminResourcePage } from "@/modules/admin/admin-resource-page";
+import { requireAdmin } from "@/lib/auth/session";
 import { listAllCategories, listAllTags } from "@/services/admin-service";
 
 const columns = [
@@ -9,6 +10,8 @@ const columns = [
 ];
 
 export default async function AdminCategoriesPage() {
+  await requireAdmin();
+
   const [categories, tags] = await Promise.all([listAllCategories(), listAllTags()]);
 
   const categoryRows = categories.map((category) => ({

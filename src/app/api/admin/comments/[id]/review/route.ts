@@ -1,11 +1,22 @@
 import { NextRequest } from "next/server";
-import { ok, notFound } from "@/lib/api-response";
+import { forbidden, notFound, ok, unauthorized } from "@/lib/api-response";
+import { getAdminSession } from "@/lib/auth/session";
+import { verifySameOrigin } from "@/lib/request-origin";
 import { reviewComment } from "@/services/admin-service";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  if (!verifySameOrigin(request)) {
+    return forbidden("来源校验失败");
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();

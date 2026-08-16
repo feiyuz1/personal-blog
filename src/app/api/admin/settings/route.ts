@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 
-import { ok } from "@/lib/api-response";
+import { forbidden, ok, unauthorized } from "@/lib/api-response";
+import { getAdminSession } from "@/lib/auth/session";
+import { verifySameOrigin } from "@/lib/request-origin";
 import { prisma } from "@/lib/prisma";
 
 type SettingsBody = {
@@ -20,6 +22,11 @@ function normalizeJsonInput(value: Prisma.InputJsonValue | null | undefined) {
 
 /** GET /api/admin/settings - 获取站点设置 */
 export async function GET() {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
   try {
     let settings = await prisma.siteSetting.findFirst();
 
@@ -44,6 +51,15 @@ export async function GET() {
 
 /** PUT /api/admin/settings - 更新站点设置 */
 export async function PUT(request: Request) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  if (!verifySameOrigin(request)) {
+    return forbidden("来源校验失败");
+  }
+
   try {
     let settings = await prisma.siteSetting.findFirst();
     const body = (await request.json()) as SettingsBody;

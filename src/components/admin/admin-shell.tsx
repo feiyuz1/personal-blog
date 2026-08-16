@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
+
 const adminNav = [
   { label: "概览", href: "/admin" },
   { label: "文章管理", href: "/admin/posts" },
@@ -43,6 +45,8 @@ export function AdminShell({
             </Link>
           ))}
         </nav>
+
+        <AdminLogoutButton />
       </aside>
 
       <div className="space-y-6">

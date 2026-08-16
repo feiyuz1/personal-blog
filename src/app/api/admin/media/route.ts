@@ -1,10 +1,24 @@
-import { ok } from "@/lib/api-response";
-import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
+
 import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { basename, extname, join } from "path";
+
+import { badRequest, forbidden, ok, payloadTooLarge, unauthorized } from "@/lib/api-response";
+import { getAdminSession } from "@/lib/auth/session";
+import { verifySameOrigin } from "@/lib/request-origin";
+import { prisma } from "@/lib/prisma";
+
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 /** GET /api/admin/media - 分页获取媒体文件列表 */
 export async function GET(request: Request) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") ?? "1", 10);
@@ -37,32 +51,53 @@ export async function GET(request: Request) {
   }
 }
 
-/** POST /api/admin/media - 上传文件（占位实现，元数据存入数据库） */
+/** POST /api/admin/media - 上传图片文件 */
 export async function POST(request: Request) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  if (!verifySameOrigin(request)) {
+    return forbidden("来源校验失败");
+  }
+
   try {
-    // TODO: 实现真正的文件上传处理
-    // 目前接收 FormData 并保存元数据
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
     if (!file || file.size === 0) {
-      return ok(null, "请选择文件上传");
+      return badRequest("请选择文件上传");
     }
 
-    // 生成模拟的 URL 路径
-    const fileName = file.name || "unknown";
-    const urlPath = `/uploads/${Date.now()}-${fileName}`;
+    if (file.size > MAX_FILE_SIZE) {
+      return payloadTooLarge("文件大小不能超过 10 MB");
+    }
+
+    const ext = extname(file.name).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return badRequest("仅支持 jpg/jpeg/png/webp/gif 图片");
+    }
+
+    if (!ALLOWED_MIME.has(file.type)) {
+      return badRequest("文件类型不合法");
+    }
+
+    // 磁盘文件名一律用随机 UUID，杜绝路径穿越与文件名冲突；
+    // 原始文件名仅做 basename 后存库用于展示。
+    const storedName = `${randomUUID()}${ext}`;
+    const urlPath = `/uploads/${storedName}`;
     const uploadDir = join(process.cwd(), "public", "uploads");
 
     await mkdir(uploadDir, { recursive: true });
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(join(uploadDir, `${Date.now()}-${fileName}`), buffer);
+    await writeFile(join(uploadDir, storedName), buffer);
 
     const mediaFile = await prisma.mediaFile.create({
       data: {
-        fileName,
+        fileName: basename(file.name),
         fileUrl: urlPath,
-        fileType: file.type || "application/octet-stream",
+        fileType: file.type,
         fileSize: BigInt(file.size),
       },
     });
@@ -70,7 +105,7 @@ export async function POST(request: Request) {
     return ok(mediaFile, "上传成功");
   } catch (error) {
     console.error("Media POST error:", error);
-    return ok(null, "上传失败");
+    return badRequest("上传失败");
   }
 }
 

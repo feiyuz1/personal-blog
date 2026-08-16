@@ -1,26 +1,8 @@
-"use client";
+import { requireAdmin } from "@/lib/auth/session";
+import { AdminPostActionPage } from "@/modules/admin/admin-post-action-page";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+export default async function AdminPostActionRoute() {
+  await requireAdmin();
 
-import { AdminPostEditorPage } from "@/modules/admin/admin-post-editor";
-
-function PostEditorContent() {
-  const searchParams = useSearchParams();
-  const action = searchParams.get("action") ?? "new";
-  const editId = searchParams.get("id") ?? undefined;
-
-  if (action === "edit" && editId) {
-    return <AdminPostEditorPage editId={editId} />;
-  }
-
-  return <AdminPostEditorPage />;
-}
-
-export default function AdminPostActionPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">加载编辑器...</div>}>
-      <PostEditorContent />
-    </Suspense>
-  );
+  return <AdminPostActionPage />;
 }

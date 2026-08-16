@@ -46,15 +46,7 @@ export function AdminLoginPage() {
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-slate-900">后台登录</h1>
           <p className="max-w-xl text-sm leading-8 text-slate-600">
-            使用管理员账号登录后台管理面板。种子数据默认账号为
-            <span className="mx-1 rounded bg-slate-100 px-2 py-0.5 font-mono text-sm">
-              admin
-            </span>
-            /
-            <span className="mx-1 rounded bg-slate-100 px-2 py-0.5 font-mono text-sm">
-              admin123456
-            </span>
-            。
+            请输入管理员账号和密码登录后台管理面板。
           </p>
         </div>
 
@@ -102,7 +94,7 @@ export function AdminLoginPage() {
           </button>
 
           <p className="pt-2 text-center text-xs text-slate-400">
-            当前没有内置兜底登录，账号请以数据库中的用户为准。
+            登录后将进入后台管理面板。
           </p>
         </form>
       </div>

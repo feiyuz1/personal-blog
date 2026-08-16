@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 
-import { notFound, ok } from "@/lib/api-response";
+import { forbidden, notFound, ok, unauthorized } from "@/lib/api-response";
+import { getAdminSession } from "@/lib/auth/session";
+import { verifySameOrigin } from "@/lib/request-origin";
 import { deletePost, getPostById, updatePost } from "@/services/admin-service";
 
 async function readPostRecord(id: string) {
@@ -27,6 +29,11 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
   try {
     const { id } = await params;
     const post = await readPostRecord(id);
@@ -46,6 +53,15 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  if (!verifySameOrigin(request)) {
+    return forbidden("来源校验失败");
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -92,9 +108,18 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  if (!verifySameOrigin(request)) {
+    return forbidden("来源校验失败");
+  }
+
   try {
     const { id } = await params;
     await deletePost(BigInt(id));

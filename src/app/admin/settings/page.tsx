@@ -1,8 +1,11 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Panel } from "@/components/ui/panel";
+import { requireAdmin } from "@/lib/auth/session";
 import { getSiteConfig } from "@/services/content-service";
 
 export default async function AdminSettingsPage() {
+  await requireAdmin();
+
   const siteConfig = await getSiteConfig();
 
   return (

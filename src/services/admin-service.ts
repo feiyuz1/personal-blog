@@ -15,6 +15,11 @@ export interface LoginResult {
   error?: string;
 }
 
+// 用于「用户名不存在」分支的占位哈希，与真实密码无关。
+// 仅为了在用户不存在时也执行一次 bcrypt 比对，拉平响应耗时。
+const DUMMY_PASSWORD_HASH =
+  "$2b$10$7DG9doKt.7NRDuyCcpTTgexbMb4Gt8Go.G7SXScuoVq8bZW8Dthc2";
+
 type AdminPostRecord = Prisma.PostGetPayload<{
   include: {
     category: true;
@@ -74,6 +79,9 @@ export async function loginAdmin(username: string, password: string): Promise<Lo
     const user = await prisma.user.findUnique({ where: { username } });
 
     if (!user) {
+      // 用户不存在时也做一次 bcrypt 比对，拉平与「密码错误」分支的耗时，
+      // 避免通过响应时间差判断用户名是否存在。
+      await compare(password, DUMMY_PASSWORD_HASH);
       return { success: false, error: "用户名或密码错误" };
     }
 

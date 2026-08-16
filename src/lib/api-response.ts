@@ -57,3 +57,39 @@ export function notFound(message = "not found") {
   };
   return NextResponse.json(body, { status: 404 });
 }
+
+export function forbidden(message = "forbidden") {
+  const body: ApiResponse<null> = {
+    code: 403,
+    message,
+    data: null,
+  };
+  return NextResponse.json(body, { status: 403 });
+}
+
+export function badRequest(message = "bad request") {
+  const body: ApiResponse<null> = {
+    code: 400,
+    message,
+    data: null,
+  };
+  return NextResponse.json(body, { status: 400 });
+}
+
+export function payloadTooLarge(message = "payload too large") {
+  const body: ApiResponse<null> = {
+    code: 413,
+    message,
+    data: null,
+  };
+  return NextResponse.json(body, { status: 413 });
+}
+
+export function tooManyRequests(message = "too many requests") {
+  const body: ApiResponse<null> = {
+    code: 429,
+    message,
+    data: null,
+  };
+  return NextResponse.json(body, { status: 429 });
+}

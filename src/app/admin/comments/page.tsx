@@ -1,4 +1,5 @@
 import { AdminResourcePage } from "@/modules/admin/admin-resource-page";
+import { requireAdmin } from "@/lib/auth/session";
 
 const columns = [
   { key: "author", label: "评论人" },
@@ -100,7 +101,9 @@ const rows = [
   },
 ];
 
-export default function AdminCommentsPage() {
+export default async function AdminCommentsPage() {
+  await requireAdmin();
+
   return (
     <AdminResourcePage
       title="评论审核"

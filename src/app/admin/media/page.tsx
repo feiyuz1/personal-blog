@@ -1,4 +1,5 @@
 import { AdminResourcePage } from "@/modules/admin/admin-resource-page";
+import { requireAdmin } from "@/lib/auth/session";
 
 const columns = [
   { key: "fileName", label: "文件名" },
@@ -71,7 +72,9 @@ const rows = [
   },
 ];
 
-export default function AdminMediaPage() {
+export default async function AdminMediaPage() {
+  await requireAdmin();
+
   return (
     <AdminResourcePage
       title="媒体资源管理"

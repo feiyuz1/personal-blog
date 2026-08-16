@@ -1,9 +1,15 @@
-import { ok } from "@/lib/api-response";
-import { prisma } from "@/lib/prisma";
+import { forbidden, ok, unauthorized } from "@/lib/api-response";
+import { getAdminSession } from "@/lib/auth/session";
+import { verifySameOrigin } from "@/lib/request-origin";
 import { createPost, listAllPosts } from "@/services/admin-service";
 
 /** GET /api/admin/posts - 文章列表（后台视图，含草稿） */
 export async function GET(request: Request) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") ?? "1", 10);
@@ -44,6 +50,15 @@ export async function GET(request: Request) {
 
 /** POST /api/admin/posts - 创建新文章 */
 export async function POST(request: Request) {
+  const session = await getAdminSession();
+  if (!session) {
+    return unauthorized();
+  }
+
+  if (!verifySameOrigin(request)) {
+    return forbidden("来源校验失败");
+  }
+
   let postSlug = "";
 
   try {
@@ -74,15 +89,6 @@ export async function POST(request: Request) {
       return ok(null, "标题和 slug 不能为空");
     }
 
-    const admin = await prisma.user.findFirst({
-      where: { username: "admin" },
-      select: { id: true },
-    });
-
-    if (!admin) {
-      return ok(null, "未找到管理员账户");
-    }
-
     const post = await createPost({
       title,
       slug: postSlug,
@@ -92,7 +98,7 @@ export async function POST(request: Request) {
       categoryId,
       isTop,
       tagSlugs,
-      authorId: admin.id,
+      authorId: BigInt(session.userId),
     });
 
     return ok(post);
