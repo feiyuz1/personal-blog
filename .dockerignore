@@ -1,0 +1,17 @@
+# 构建上下文排除项：减小镜像构建上下实体积、避免敏感文件进入镜像
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+.DS_Store
+*.md
+.vscode
+.idea
+.dockerignore
+Dockerfile
+compose*.yml
+.github

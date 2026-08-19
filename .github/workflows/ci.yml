@@ -1,0 +1,44 @@
+# Feiyuz Blog CI：代码检查、类型检查与构建验证
+# 触发：推送到 main 或针对 main 的 Pull Request
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci || npm install
+
+      - name: 生成 Prisma Client
+        run: npx prisma generate
+
+      - name: ESLint 代码检查
+        run: npm run lint
+
+      - name: TypeScript 类型检查
+        run: npx tsc --noEmit
+
+      - name: 构建生产产物
+        env:
+          # 构建期不连接数据库，但仍需这些变量存在以通过校验
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          SHADOW_DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          SESSION_SECRET: ci-placeholder-secret-not-used-in-production-32bytes
+          APP_ORIGIN: http://localhost:3000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: npm run build
