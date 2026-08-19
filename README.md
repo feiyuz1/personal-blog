@@ -1,47 +1,53 @@
 # 个人博客项目
 
-这是博客项目的第一阶段本地开发版本，已经完成前台页面骨架、后台管理骨架、Prisma 数据层和本地数据库接入。
+基于 Next.js 16 App Router 的个人全栈博客系统，包含前台内容展示、后台管理、RESTful API 与 Prisma 数据层。
 
 ## 技术栈
 
-- Next.js 16 + App Router
-- TypeScript
-- Prisma ORM
-- PostgreSQL（通过 Prisma Dev 启动本地开发库）
-- ESLint + Prettier
+- Next.js 16 + App Router（standalone 输出）
+- React 19 + TypeScript
+- Prisma 6 + PostgreSQL 16
+- Tailwind CSS 4
 - MDX
+- jose（JWT 会话）+ bcryptjs（密码哈希）
+- 代码高亮：highlight.js（CDN 按需加载）
 
 ## 快速开始
 
 ```bash
 npm install
+cp .env.example .env   # 填入数据库连接与会话密钥
 npm run db:up
 npm run prisma:push
 npm run prisma:seed
 npm run dev
 ```
 
-启动完成后，访问 `http://localhost:3000`。
-
-后台登录地址是 `http://localhost:3000/admin/login`，默认账号如下：
+启动后访问 `http://localhost:3000`。后台登录地址 `http://localhost:3000/admin/login`，默认账号：
 
 - 用户名：`admin`
 - 密码：`admin123456`
 
+> 环境变量 `SESSION_SECRET` 必须配置，否则登录会报错。本地开发可沿用 `.env.example` 中的占位值，生产环境务必用 `openssl rand -base64 32` 重新生成。`APP_ORIGIN` 用于写接口同源校验，本地填 `http://localhost:3000`。
+
 ## 常用命令
 
 ```bash
-npm run db:up
+# 数据库
+npm run db:up            # 启动 Prisma Dev 本地数据库
 npm run db:down
 npm run db:status
-npm run db:docker:up
+npm run db:docker:up     # 或用 Docker 启动数据库
 npm run db:docker:down
-npm run db:docker:logs
+
+# Prisma
 npm run prisma:generate
-npm run prisma:push
-npm run prisma:migrate
-npm run prisma:studio
-npm run prisma:seed
+npm run prisma:push      # 同步 schema 到数据库（开发用）
+npm run prisma:migrate   # 创建迁移（规范方式）
+npm run prisma:seed      # 填充初始数据
+npm run prisma:studio    # 可视化管理
+
+# 代码质量
 npm run lint
 npm run build
 ```
@@ -49,31 +55,69 @@ npm run build
 ## 目录说明
 
 - `src/app`：路由页面与 API Route
-- `src/modules`：页面级模块
+  - `api/admin/*`：后台管理接口（鉴权 + 同源校验）
+  - `api/comments`：评论提交与查询
+  - `admin/*`：后台页面
+- `src/modules`：页面级模块（前台与后台）
 - `src/components`：通用组件
-- `src/services`：数据访问与业务边界
-- `src/data/mock-content.ts`：本地示例内容
+- `src/services`：数据访问与业务边界（content-service / admin-service）
+- `src/lib/auth`：会话与 JWT（token.ts / session.ts）
+- `src/lib`：基础能力封装（prisma、api-response、rate-limit、request-origin）
+- `src/middleware.ts`：后台路径乐观鉴权重定向
+- `src/data/mock-content.ts`：本地示例内容（站点配置/关于/技术栈/时间线/联系方式）
 - `src/types`：类型定义
 - `prisma/schema.prisma`：数据库模型
 - `prisma/seed.ts`：初始化种子数据
+- `Dockerfile` / `compose.prod.yml` / `nginx/blog.conf`：生产部署件
 
-## 使用说明
+## 关于 seed 数据
 
-- `db:up` 会启动本机的 Prisma Dev 本地数据库服务。
-- `prisma:push` 用于把 Prisma schema 同步到当前本地数据库。
-- `prisma:seed` 会写入示例文章、分类、标签、项目和站点内容块。
-- `compose.yml` 仍然保留为可选的 Docker 数据库方案。
-- `src/app/posts/getting-started/page.mdx` 是一个 MDX 示例页面。
-- `src/app/api/health/route.ts` 是一个轻量健康检查接口。
+`prisma:seed` 当前仅写入：
 
-## 当前状态
+- 一个管理员账号（admin / admin123456）
+- 六个站点内容块（site-config、about-sections、contact-channels、profile-info、tech-stacks、timeline）
 
-- 前台页面已经具备浏览、分类、标签、归档、搜索、关于、联系和项目页。
-- 后台已经具备文章管理、分类标签、评论审核、媒体资源和系统设置的骨架。
-- 当前登录和部分后台能力仍偏本地开发用途，正式上线前还需要补完善的鉴权与会话机制。
+**不包含示例文章、分类、标签和项目**。文章与项目内容需通过后台手动创建，或后续扩展 seed 脚本补充。
+
+## 当前功能状态
+
+### 前台
+- 首页、文章列表与详情、分类、标签、归档、搜索、关于我、联系我、项目展示
+- 文章详情：目录导航、上下篇、代码块语法高亮（highlight.js）
+- 文章详情评论区：展示已通过评论（支持嵌套回复）、提交评论（审核制）
+
+### 后台
+- 概览、文章管理（新建/编辑/删除/草稿/发布）
+- 分类标签管理
+- 媒体资源管理（上传/列表/删除/分页）
+- 评论审核（待审核/已通过/已拒绝切换、通过/拒绝/删除）
+- 系统设置（站点信息/SEO/社交链接可编辑保存）
+- 登录鉴权：JWT 会话 + Cookie（httpOnly）、登录限流、同源校验、中间件乐观重定向
+
+### API
+- 公开：文章、分类、标签、搜索、归档、项目、评论、RSS、联系、健康检查
+- 管理：登录/登出、文章 CRUD、分类标签、媒体、评论审核、系统设置
+
+## 生产部署
+
+项目提供完整的生产部署件，基于 Docker Compose 三服务编排（postgres + web + nginx）：
+
+```bash
+cp .env.prod.example .env.prod   # 填入生产数据库口令、SESSION_SECRET、域名等
+docker compose -f compose.prod.yml --env-file .env.prod up -d --build
+```
+
+部署前需在数据库中执行迁移（在有 Prisma CLI 的环境运行）：
+
+```bash
+DATABASE_URL=postgresql://user:pass@host:5432/db npx prisma migrate deploy
+```
+
+详见 `Dockerfile`、`compose.prod.yml`、`nginx/blog.conf`。CI 配置见 `.github/workflows/ci.yml`。
 
 ## 常见问题
 
-- 如果 `prisma:push` 或 `prisma:seed` 报数据库连接问题，先运行 `npm run db:status` 查看当前 Prisma Dev 的状态。
-- 如果本地数据库服务没起来，先重新执行 `npm run db:up`。
-- 如果你修改了 `prisma/schema.prisma`，记得重新执行 `npm run prisma:push` 和 `npm run prisma:generate`。
+- `prisma:push` / `prisma:seed` 报数据库连接问题：先 `npm run db:status` 查看状态，必要时重新 `npm run db:up`。
+- 修改 `prisma/schema.prisma` 后需重新执行 `npm run prisma:push` 和 `npm run prisma:generate`。
+- 登录报 "SESSION_SECRET 未配置"：在 `.env` 中配置 `SESSION_SECRET`。
+- 写接口（上传/评论/审核等）报 "来源校验失败"：在 `.env` 中配置 `APP_ORIGIN` 与站点地址一致。
