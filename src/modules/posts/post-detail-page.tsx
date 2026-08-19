@@ -4,9 +4,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
 import { Pill } from "@/components/ui/pill";
+import { PostComments } from "@/modules/posts/post-comments";
+import type { CommentNode } from "@/services/content-service";
 import type { PostDetail } from "@/types/content";
 
-export function PostDetailPage({ post }: { post: PostDetail | null }) {
+export function PostDetailPage({
+  post,
+  initialComments = [],
+}: {
+  post: PostDetail | null;
+  initialComments?: CommentNode[];
+}) {
   if (!post) {
     return (
       <div className="mx-auto w-full max-w-4xl px-6 py-12 md:px-10">
@@ -167,6 +175,11 @@ export function PostDetailPage({ post }: { post: PostDetail | null }) {
           </Panel>
         </aside>
       </div>
+
+      {/* 评论区：展示已通过评论并支持提交新评论 */}
+      {post.id ? (
+        <PostComments postId={post.id} initialComments={initialComments} />
+      ) : null}
     </article>
   );
 }

@@ -1,4 +1,4 @@
-import { PostStatus, Prisma, ProjectStatus } from "@prisma/client";
+import { CommentStatus, PostStatus, Prisma, ProjectStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type {
@@ -479,6 +479,59 @@ export async function getTechStacks(): Promise<TechStackCategory[]> {
 
 export async function getTimeline(): Promise<TimelineItem[]> {
   return (await loadContentBlock(CONTENT_BLOCK_KEYS.timeline)) ?? [];
+}
+
+// 评论树节点：用于文章详情页展示嵌套评论
+export interface CommentNode {
+  id: string;
+  nickname: string;
+  content: string;
+  createdAt: string;
+  children: CommentNode[];
+}
+
+/**
+ * 获取某篇文章下已通过审核的评论，按 parentId 组织为树形结构。
+ * 仅返回 APPROVED 状态的评论，PENDING/REJECTED 不对外展示。
+ */
+export async function listApprovedComments(postId: bigint): Promise<CommentNode[]> {
+  const comments = await prisma.comment.findMany({
+    where: { postId, status: CommentStatus.APPROVED },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // 第一遍：把所有评论转为节点并登记到 map
+  const map = new Map<string, CommentNode>();
+  for (const c of comments) {
+    map.set(String(c.id), {
+      id: String(c.id),
+      nickname: c.nickname,
+      content: c.content,
+      createdAt: formatCommentDate(c.createdAt),
+      children: [],
+    });
+  }
+
+  // 第二遍：根据 parentId 挂到父节点；找不到父节点的视为顶层
+  const roots: CommentNode[] = [];
+  for (const c of comments) {
+    const node = map.get(String(c.id))!;
+    if (c.parentId) {
+      const parent = map.get(String(c.parentId));
+      if (parent) {
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+function formatCommentDate(date: Date): string {
+  return date.toISOString().replace("T", " ").slice(0, 16);
 }
 
 function formatDate(date: Date): string {
