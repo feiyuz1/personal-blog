@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CodeBlock } from "@/components/ui/code-block";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
@@ -100,9 +101,7 @@ export function PostDetailPage({
                 </p>
               ))}
               {section.kind === "code" && section.code ? (
-                <pre className="overflow-x-auto rounded-3xl bg-slate-950 p-5 text-sm leading-relaxed text-slate-100">
-                  <code>{section.code}</code>
-                </pre>
+                <CodeBlock code={section.code} />
               ) : null}
               {section.kind === "quote" ? (
                 <blockquote className="rounded-3xl border-l-4 border-emerald-700/40 bg-emerald-50 px-5 py-4 text-base leading-7 text-slate-700 italic">
