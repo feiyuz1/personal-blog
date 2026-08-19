@@ -365,8 +365,31 @@ export async function createTag(data: { name: string; slug: string }) {
   return prisma.tag.create({ data });
 }
 
+/**
+ * 更新标签：仅支持修改 name（slug 是 URL 标识，不建议改以免外链失效）。
+ */
+export async function updateTag(id: bigint, data: { name?: string }) {
+  return prisma.tag.update({ where: { id }, data });
+}
+
 export async function deleteTag(id: bigint) {
   return prisma.tag.delete({ where: { id } });
+}
+
+/**
+ * 检查分类是否被文章引用（用于删除前校验）。
+ * 返回关联文章数；>0 时不允许删除。
+ */
+export async function countPostsByCategory(id: bigint): Promise<number> {
+  return prisma.post.count({ where: { categoryId: id } });
+}
+
+/**
+ * 检查标签是否被文章引用（用于删除前校验）。
+ * 返回关联文章数；>0 时不允许删除。
+ */
+export async function countPostsByTag(id: bigint): Promise<number> {
+  return prisma.postTag.count({ where: { tagId: id } });
 }
 
 export async function listAllComments(options?: {
