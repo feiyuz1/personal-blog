@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/token";
 
 /**
- * 乐观鉴权层（Next.js 中间件）。
+ * 乐观鉴权层（Next.js 16 proxy 约定）。
  *
  * 作用：未登录访问 /admin/* 时提前重定向到登录页，避免页面组件层再兜底，
  * 提升未登录访问后台的体验。
@@ -12,14 +12,14 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/token";
  * 安全边界说明：
  *   这一层不是权威校验，只是"提前拦截"以减少不必要的渲染。
  *   真正的权威校验在 Server Page（requireAdmin）和 Route Handler
- *   （getAdminSession）里——即使中间件被绕过，未登录请求仍会被这两层挡下。
+ *   （getAdminSession）里——即使 proxy 被绕过，未登录请求仍会被这两层挡下。
  *
- * 命名约定：
- *   Next.js 仅自动加载位于 src/ 根目录、名为 `middleware.ts` 的文件作为中间件，
- *   且约定导出函数名为 `middleware`。此前项目将其命名为 `proxy.ts` 不会被加载，
- *   已更正为标准命名。
+ * 命名约定（Next.js 16+）：
+ *   Next.js 16 起，约定文件名从 `middleware.ts` 改为 `proxy.ts`，
+ *   导出函数名也改为 `proxy`。本项目此前误判将其重命名为 middleware，
+ *   现已更正回 proxy 约定。
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 登录页本身放行，避免重定向成环。
