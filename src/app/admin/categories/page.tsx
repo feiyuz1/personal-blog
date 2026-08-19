@@ -1,25 +1,24 @@
-import { AdminResourcePage } from "@/modules/admin/admin-resource-page";
 import { requireAdmin } from "@/lib/auth/session";
 import { listAllCategories, listAllTags } from "@/services/admin-service";
+import { AdminCategoriesPage as AdminCategoriesClient } from "@/modules/admin/admin-categories-page";
 
-const columns = [
-  { key: "_type", label: "类型" },
-  { key: "name", label: "名称" },
-  { key: "slug", label: "Slug" },
-  { key: "count", label: "关联数" },
-];
-
-export default async function AdminCategoriesPage() {
+/**
+ * 分类与标签管理页（服务端组件）。
+ * 服务端预取分类与标签列表传入客户端组件；
+ * 新增/编辑/删除由客户端组件请求 API 完成后自行刷新列表。
+ */
+export default async function AdminCategoriesRoute() {
   await requireAdmin();
 
   const [categories, tags] = await Promise.all([listAllCategories(), listAllTags()]);
 
+  // 映射为客户端组件所需行结构
   const categoryRows = categories.map((category) => ({
     id: String(category.id),
     values: {
-      _type: "分类",
       name: category.name,
       slug: category.slug,
+      description: category.description ?? "",
       count: String(category._count.posts),
     },
   }));
@@ -27,7 +26,6 @@ export default async function AdminCategoriesPage() {
   const tagRows = tags.map((tag) => ({
     id: String(tag.id),
     values: {
-      _type: "标签",
       name: tag.name,
       slug: tag.slug,
       count: String(tag._count.postTags),
@@ -35,13 +33,9 @@ export default async function AdminCategoriesPage() {
   }));
 
   return (
-    <AdminResourcePage
-      title="分类与标签管理"
-      description="管理博客的分类体系和标签体系。分类偏栏目组织，标签偏主题索引。"
-      columns={columns}
-      rows={[...categoryRows, ...tagRows]}
-      placeholderNote="支持新增、编辑、删除操作。删除前会检查是否有关联文章。"
-      createLabel="新建分类/标签"
+    <AdminCategoriesClient
+      initialCategories={categoryRows}
+      initialTags={tagRows}
     />
   );
 }
