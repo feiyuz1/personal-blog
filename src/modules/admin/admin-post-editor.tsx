@@ -39,6 +39,24 @@ interface AdminCategoryRow {
   };
 }
 
+interface MediaRow {
+  id: string;
+  values: {
+    fileName: string;
+    type: string;
+    size: string;
+    url: string;
+    createdAt: string;
+  };
+}
+
+interface MediaListResponse {
+  rows: MediaRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 interface PostEditorRecord {
   title: string;
   slug: string;
@@ -71,6 +89,7 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
   const [loaded, setLoaded] = useState(!editId);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [mediaRows, setMediaRows] = useState<MediaRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +116,15 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
       .then((data: ApiResponse<TagOption[]>) => {
         if (cancelled || !Array.isArray(data.data)) return;
         setTags(data.data);
+      })
+      .catch(() => {});
+
+    fetch("/api/admin/media?page=1&pageSize=100")
+      .then((response) => response.json())
+      .then((data: ApiResponse<MediaListResponse>) => {
+        if (!cancelled && Array.isArray(data.data?.rows)) {
+          setMediaRows(data.data.rows);
+        }
       })
       .catch(() => {});
 
@@ -176,6 +204,12 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
         ? current.tagSlugs.filter((slug) => slug !== tagSlug)
         : [...current.tagSlugs, tagSlug],
     }));
+  }
+
+  function insertMedia(url: string, fileName: string) {
+    const separator = form.content.trim() ? "\n\n" : "";
+    updateField("content", `${form.content}${separator}![${fileName}](${url})\n`);
+    setMessage({ type: "success", text: "图片已插入正文末尾" });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -385,6 +419,29 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
           <span className="text-sm font-medium text-slate-700">
             正文内容 <span className="font-normal text-slate-400">(Markdown)</span>
           </span>
+          {mediaRows.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+              <select
+                defaultValue=""
+                onChange={(event) => {
+                  const selected = mediaRows.find((row) => row.id === event.target.value);
+                  if (selected) insertMedia(selected.values.url, selected.values.fileName);
+                  event.target.value = "";
+                }}
+                className="min-w-56 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="">从媒体库选择图片并插入...</option>
+                {mediaRows.map((row) => (
+                  <option key={row.id} value={row.id}>{row.values.fileName}</option>
+                ))}
+              </select>
+              <Link href="/admin/media" className="text-xs font-medium text-emerald-700 hover:underline">
+                查看和管理图片
+              </Link>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">媒体库暂无图片，先去 <Link href="/admin/media" className="text-emerald-700 hover:underline">上传图片</Link>。</p>
+          )}
           <textarea
             className="min-h-[320px] w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm leading-relaxed placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
             placeholder="# 标题\n\n## 第一段\n\n写点东西...\n"

@@ -184,6 +184,7 @@ export function AdminMediaPage({
             <table className="min-w-full divide-y divide-black/5 bg-white">
               <thead className="bg-slate-50">
                 <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">预览</th>
                   {COLUMNS.map((column) => (
                     <th
                       key={column.key}
@@ -200,6 +201,15 @@ export function AdminMediaPage({
               <tbody className="divide-y divide-black/5">
                 {rows.map((row) => (
                   <tr key={row.id} className="transition hover:bg-slate-50/50">
+                    <td className="px-4 py-3">
+                      <a href={row.values.url} target="_blank" rel="noreferrer" title="查看原图">
+                        <img
+                          src={row.values.url}
+                          alt={row.values.fileName}
+                          className="h-12 w-16 rounded-lg border border-slate-100 object-cover"
+                        />
+                      </a>
+                    </td>
                     {COLUMNS.map((column) => (
                       <td
                         key={column.key}
