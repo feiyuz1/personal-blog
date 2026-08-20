@@ -77,7 +77,7 @@ const defaultForm: PostFormData = {
   readingTime: "5 min",
   categoryId: "",
   isTop: false,
-  status: "DRAFT",
+  status: "PUBLISHED",
   tagSlugs: [],
 };
 

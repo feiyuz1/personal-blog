@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       readingTime,
       categoryId,
       isTop,
+      status,
       tagSlugs,
     } = body as {
       title?: string;
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
       readingTime?: string;
       categoryId?: number;
       isTop?: boolean;
+      status?: "DRAFT" | "PUBLISHED" | "OFFLINE";
       tagSlugs?: string[];
     };
 
@@ -97,6 +99,7 @@ export async function POST(request: Request) {
       readingTime,
       categoryId,
       isTop,
+      status,
       tagSlugs,
       authorId: BigInt(session.userId),
     });

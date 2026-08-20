@@ -185,11 +185,12 @@ interface CreatePostInput {
   readingTime?: string;
   categoryId?: number | bigint;
   isTop?: boolean;
+  status?: PostStatus;
   tagSlugs?: string[];
 }
 
 export async function createPost(input: CreatePostInput & { authorId: bigint }) {
-  const { tagSlugs, ...data } = input;
+  const { tagSlugs, status = PostStatus.DRAFT, ...data } = input;
 
   return prisma.post.create({
     data: {
@@ -201,8 +202,8 @@ export async function createPost(input: CreatePostInput & { authorId: bigint }) 
       categoryId: data.categoryId ? BigInt(data.categoryId) : null,
       authorId: data.authorId,
       isTop: data.isTop ?? false,
-      status: PostStatus.DRAFT,
-      publishedAt: null,
+      status,
+      publishedAt: status === PostStatus.PUBLISHED ? new Date() : null,
       ...(tagSlugs && {
         postTags: {
           create: tagSlugs.map((slug) => ({

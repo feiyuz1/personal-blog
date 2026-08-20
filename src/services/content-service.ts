@@ -208,7 +208,7 @@ export async function listPosts(): Promise<PostSummary[]> {
 
 export async function getPostBySlug(slug: string): Promise<PostDetail | null> {
   const post = await prisma.post.findUnique({
-    where: { slug },
+    where: { slug: decodeURIComponent(slug) },
     include: {
       category: true,
       author: true,
@@ -270,7 +270,7 @@ export async function listCategories(): Promise<CategorySummary[]> {
 
 export async function getCategoryBySlug(slug: string): Promise<CategorySummary | null> {
   const category = await prisma.category.findUnique({
-    where: { slug },
+    where: { slug: decodeURIComponent(slug) },
     include: {
       _count: { select: { posts: { where: { status: PostStatus.PUBLISHED } } } },
     },
@@ -323,7 +323,7 @@ export async function listTags(): Promise<TagSummary[]> {
 
 export async function getTagBySlug(slug: string): Promise<TagSummary | null> {
   const tag = await prisma.tag.findUnique({
-    where: { slug },
+    where: { slug: decodeURIComponent(slug) },
     include: {
       _count: {
         select: {
