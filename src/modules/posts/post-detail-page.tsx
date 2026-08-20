@@ -9,6 +9,11 @@ import { PostComments } from "@/modules/posts/post-comments";
 import type { CommentNode } from "@/services/content-service";
 import type { PostDetail } from "@/types/content";
 
+function parseLocalImage(markdown: string) {
+  const match = markdown.match(/^!\[([^\]]*)\]\((\/uploads\/[^)\s]+)\)$/);
+  return match ? { alt: match[1], src: match[2] } : null;
+}
+
 export function PostDetailPage({
   post,
   initialComments = [],
@@ -92,14 +97,19 @@ export function PostDetailPage({
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900 scroll-mt-24">
                 {section.title}
               </h2>
-              {section.body.map((paragraph) => (
-                <p
-                  key={paragraph}
-                  className="text-base leading-8 text-slate-700"
-                >
-                  {paragraph}
-                </p>
-              ))}
+              {section.body.map((paragraph) => {
+                const image = parseLocalImage(paragraph);
+                return image ? (
+                  <figure key={paragraph} className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                    <img src={image.src} alt={image.alt} className="max-h-[680px] w-full object-contain" />
+                    {image.alt ? <figcaption className="px-4 py-2 text-center text-xs text-slate-500">{image.alt}</figcaption> : null}
+                  </figure>
+                ) : (
+                  <p key={paragraph} className="text-base leading-8 text-slate-700">
+                    {paragraph}
+                  </p>
+                );
+              })}
               {section.kind === "code" && section.code ? (
                 <CodeBlock code={section.code} />
               ) : null}
