@@ -160,7 +160,7 @@ export function AdminPostsPage({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/admin/posts?action=new"
+            href="/admin/posts/action?action=new"
             className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             + 新建文章
@@ -242,7 +242,7 @@ export function AdminPostsPage({
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Link
-                          href={`/admin/posts?action=edit&id=${row.id}`}
+                          href={`/admin/posts/action?action=edit&id=${row.id}`}
                           className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
                         >
                           编辑

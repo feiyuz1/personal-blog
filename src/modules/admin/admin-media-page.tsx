@@ -165,7 +165,7 @@ export function AdminMediaPage({
             {uploading ? "上传中..." : "+ 上传文件"}
           </button>
           <span className="text-xs text-slate-400">
-            共 {total} 条记录 · 支持 jpg/png/webp/gif，单文件 ≤ 10MB
+            共 {total} 条记录 · 支持 jpg/png/webp/gif，单文件 ≤ 30MB
           </span>
         </div>
       </div>

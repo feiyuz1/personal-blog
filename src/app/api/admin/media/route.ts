@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 MB
 
 /** GET /api/admin/media - 分页获取媒体文件列表 */
 export async function GET(request: Request) {
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return payloadTooLarge("文件大小不能超过 10 MB");
+      return payloadTooLarge("文件大小不能超过 30 MB");
     }
 
     const ext = extname(file.name).toLowerCase();
