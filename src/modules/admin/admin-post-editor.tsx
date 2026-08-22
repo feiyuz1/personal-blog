@@ -90,6 +90,7 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [mediaRows, setMediaRows] = useState<MediaRow[]>([]);
+  const [imageSize, setImageSize] = useState("100%");
 
   useEffect(() => {
     let cancelled = false;
@@ -208,7 +209,8 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
 
   function insertMedia(url: string, fileName: string) {
     const separator = form.content.trim() ? "\n\n" : "";
-    updateField("content", `${form.content}${separator}![${fileName}](${url})\n`);
+    const sizeTitle = imageSize === "100%" ? "" : ` "width=${imageSize}"`;
+    updateField("content", `${form.content}${separator}![${fileName}](${url}${sizeTitle})\n`);
     setMessage({ type: "success", text: "图片已插入正文末尾" });
   }
 
@@ -435,6 +437,20 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
                   <option key={row.id} value={row.id}>{row.values.fileName}</option>
                 ))}
               </select>
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                图片宽度
+                <select
+                  value={imageSize}
+                  onChange={(event) => setImageSize(event.target.value)}
+                  className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="100%">自适应（100%）</option>
+                  <option value="75%">75%</option>
+                  <option value="50%">50%</option>
+                  <option value="25%">25%</option>
+                  <option value="640px">640px</option>
+                </select>
+              </label>
               <Link href="/admin/media" className="text-xs font-medium text-emerald-700 hover:underline">
                 查看和管理图片
               </Link>

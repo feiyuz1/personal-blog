@@ -43,6 +43,7 @@ export interface PostSection {
 }
 
 export interface PostDetail extends PostSummary {
+  content: string;
   toc: string[];
   sections: PostSection[];
   previousPostSlug?: string;

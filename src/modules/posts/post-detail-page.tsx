@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { CodeBlock } from "@/components/ui/code-block";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
@@ -9,9 +10,18 @@ import { PostComments } from "@/modules/posts/post-comments";
 import type { CommentNode } from "@/services/content-service";
 import type { PostDetail } from "@/types/content";
 
-function parseLocalImage(markdown: string) {
-  const match = markdown.match(/^!\[([^\]]*)\]\((\/uploads\/[^)\s]+)\)$/);
-  return match ? { alt: match[1], src: match[2] } : null;
+function getImageWidth(title?: string | null) {
+  const match = title?.match(/^width=(\d{1,3}%|\d{2,4}px)$/);
+  if (!match) return undefined;
+
+  const width = match[1];
+  if (width.endsWith("%")) {
+    const percent = Number.parseInt(width, 10);
+    return percent >= 1 && percent <= 100 ? width : undefined;
+  }
+
+  const pixels = Number.parseInt(width, 10);
+  return pixels >= 120 && pixels <= 1600 ? width : undefined;
 }
 
 export function PostDetailPage({
@@ -91,35 +101,29 @@ export function PostDetailPage({
         title=""
         description=""
       >
-        <div className="prose prose-slate max-w-none space-y-8">
-          {post.sections.map((section) => (
-            <section key={section.title} className="space-y-3" id={section.title.toLowerCase().replace(/\s+/g, '-')}>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 scroll-mt-24">
-                {section.title}
-              </h2>
-              {section.body.map((paragraph) => {
-                const image = parseLocalImage(paragraph);
-                return image ? (
-                  <figure key={paragraph} className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                    <img src={image.src} alt={image.alt} className="max-h-[680px] w-full object-contain" />
-                    {image.alt ? <figcaption className="px-4 py-2 text-center text-xs text-slate-500">{image.alt}</figcaption> : null}
+        <div className="prose prose-slate max-w-none">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              img({ src, alt, title }) {
+                if (typeof src !== "string" || !src.startsWith("/uploads/")) return null;
+                const width = getImageWidth(title);
+                return (
+                  <figure className="not-prose my-6 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                    <img
+                      src={src}
+                      alt={alt ?? ""}
+                      style={width ? { width, maxWidth: "100%" } : undefined}
+                      className="mx-auto h-auto max-h-[680px] object-contain"
+                    />
+                    {alt ? <figcaption className="px-4 py-2 text-center text-xs text-slate-500">{alt}</figcaption> : null}
                   </figure>
-                ) : (
-                  <p key={paragraph} className="text-base leading-8 text-slate-700">
-                    {paragraph}
-                  </p>
                 );
-              })}
-              {section.kind === "code" && section.code ? (
-                <CodeBlock code={section.code} />
-              ) : null}
-              {section.kind === "quote" ? (
-                <blockquote className="rounded-3xl border-l-4 border-emerald-700/40 bg-emerald-50 px-5 py-4 text-base leading-7 text-slate-700 italic">
-                  &ldquo;{section.body[0]}&rdquo;
-                </blockquote>
-              ) : null}
-            </section>
-          ))}
+              },
+            }}
+          >
+            {post.content}
+          </ReactMarkdown>
         </div>
       </Panel>
 

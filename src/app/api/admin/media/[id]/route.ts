@@ -45,7 +45,8 @@ export async function DELETE(
   //    仅处理 /uploads 前缀的本地文件，避免误删其它路径。
   if (media.fileUrl.startsWith("/uploads/")) {
     const fileName = basename(media.fileUrl);
-    const filePath = join(process.cwd(), "public", "uploads", fileName);
+    const uploadDir = process.env.MEDIA_UPLOAD_DIR ?? join(process.cwd(), "public", "uploads");
+    const filePath = join(uploadDir, fileName);
     try {
       await unlink(filePath);
     } catch (error) {

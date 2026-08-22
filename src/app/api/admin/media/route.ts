@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     // 原始文件名仅做 basename 后存库用于展示。
     const storedName = `${randomUUID()}${ext}`;
     const urlPath = `/uploads/${storedName}`;
-    const uploadDir = join(process.cwd(), "public", "uploads");
+    const uploadDir = process.env.MEDIA_UPLOAD_DIR ?? join(process.cwd(), "public", "uploads");
 
     await mkdir(uploadDir, { recursive: true });
     const buffer = Buffer.from(await file.arrayBuffer());

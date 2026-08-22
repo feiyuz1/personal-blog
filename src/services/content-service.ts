@@ -245,6 +245,7 @@ export async function getPostBySlug(slug: string): Promise<PostDetail | null> {
 
   return {
     ...summary,
+    content: post.content,
     toc: extractToc(post.content),
     sections: parseContentToSections(post.content),
     previousPostSlug: previousPosts[0]?.slug ?? undefined,
