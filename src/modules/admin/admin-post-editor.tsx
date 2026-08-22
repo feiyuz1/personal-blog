@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { AdminShell } from "@/components/admin/admin-shell";
+import { MarkdownContent } from "@/components/content/markdown-content";
 import type { ApiResponse } from "@/types/api";
 
 interface PostFormData {
@@ -82,20 +81,6 @@ const defaultForm: PostFormData = {
   status: "PUBLISHED",
   tagSlugs: [],
 };
-
-function getImageWidth(title?: string | null) {
-  const match = title?.match(/^width=(\d{1,3}%|\d{2,4}px)$/);
-  if (!match) return undefined;
-
-  const width = match[1];
-  if (width.endsWith("%")) {
-    const percent = Number.parseInt(width, 10);
-    return percent >= 1 && percent <= 100 ? width : undefined;
-  }
-
-  const pixels = Number.parseInt(width, 10);
-  return pixels >= 120 && pixels <= 1600 ? width : undefined;
-}
 
 export function AdminPostEditorPage({ editId }: { editId?: string }) {
   const router = useRouter();
@@ -533,42 +518,7 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
                   实时预览
                 </p>
                 {form.content.trim() ? (
-                  <div className="prose prose-slate max-w-none">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        img({ src, alt, title }) {
-                          if (
-                            typeof src !== "string" ||
-                            !src.startsWith("/uploads/")
-                          )
-                            return null;
-                          const width = getImageWidth(title);
-                          return (
-                            <figure className="not-prose my-5 overflow-hidden rounded-xl border border-slate-100 bg-white">
-                              <img
-                                src={src}
-                                alt={alt ?? ""}
-                                style={
-                                  width
-                                    ? { width, maxWidth: "100%" }
-                                    : undefined
-                                }
-                                className="mx-auto h-auto max-h-[500px] object-contain"
-                              />
-                              {alt ? (
-                                <figcaption className="px-3 py-2 text-center text-xs text-slate-500">
-                                  {alt}
-                                </figcaption>
-                              ) : null}
-                            </figure>
-                          );
-                        },
-                      }}
-                    >
-                      {form.content}
-                    </ReactMarkdown>
-                  </div>
+                  <MarkdownContent content={form.content} />
                 ) : (
                   <p className="py-16 text-center text-sm text-slate-400">
                     开始输入 Markdown 后在这里预览效果。

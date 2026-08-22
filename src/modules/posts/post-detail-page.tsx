@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { MarkdownContent } from "@/components/content/markdown-content";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
@@ -9,20 +8,6 @@ import { Pill } from "@/components/ui/pill";
 import { PostComments } from "@/modules/posts/post-comments";
 import type { CommentNode } from "@/services/content-service";
 import type { PostDetail } from "@/types/content";
-
-function getImageWidth(title?: string | null) {
-  const match = title?.match(/^width=(\d{1,3}%|\d{2,4}px)$/);
-  if (!match) return undefined;
-
-  const width = match[1];
-  if (width.endsWith("%")) {
-    const percent = Number.parseInt(width, 10);
-    return percent >= 1 && percent <= 100 ? width : undefined;
-  }
-
-  const pixels = Number.parseInt(width, 10);
-  return pixels >= 120 && pixels <= 1600 ? width : undefined;
-}
 
 export function PostDetailPage({
   post,
@@ -97,34 +82,8 @@ export function PostDetailPage({
       />
 
       {/* 文章正文 */}
-      <Panel
-        title=""
-        description=""
-      >
-        <div className="prose prose-slate max-w-none">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              img({ src, alt, title }) {
-                if (typeof src !== "string" || !src.startsWith("/uploads/")) return null;
-                const width = getImageWidth(title);
-                return (
-                  <figure className="not-prose my-6 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                    <img
-                      src={src}
-                      alt={alt ?? ""}
-                      style={width ? { width, maxWidth: "100%" } : undefined}
-                      className="mx-auto h-auto max-h-[680px] object-contain"
-                    />
-                    {alt ? <figcaption className="px-4 py-2 text-center text-xs text-slate-500">{alt}</figcaption> : null}
-                  </figure>
-                );
-              },
-            }}
-          >
-            {post.content}
-          </ReactMarkdown>
-        </div>
+      <Panel title="" description="">
+        <MarkdownContent content={post.content} />
       </Panel>
 
       {/* 侧边栏：目录 + 上下篇 */}
@@ -133,16 +92,13 @@ export function PostDetailPage({
         <aside className="space-y-6">
           {/* 目录 */}
           {post.toc.length > 0 ? (
-            <Panel
-              title="目录"
-              description="快速跳转到各章节"
-            >
+            <Panel title="目录" description="快速跳转到各章节">
               <nav aria-label="文章目录">
                 <ul className="space-y-2.5 text-sm">
                   {post.toc.map((item) => (
                     <li key={item}>
                       <a
-                        href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
+                        href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
                         className="block text-slate-600 transition hover:text-emerald-800"
                       >
                         {item}
@@ -155,14 +111,8 @@ export function PostDetailPage({
           ) : null}
 
           {/* 上一篇 / 下一篇 */}
-          <Panel
-            title="上下篇"
-            description="继续阅读其他文章"
-          >
-            <nav
-              className="space-y-3 text-sm"
-              aria-label="文章导航"
-            >
+          <Panel title="上下篇" description="继续阅读其他文章">
+            <nav className="space-y-3 text-sm" aria-label="文章导航">
               {post.previousPostSlug ? (
                 <Link
                   href={`/posts/${post.previousPostSlug}`}
