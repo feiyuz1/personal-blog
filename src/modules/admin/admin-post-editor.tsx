@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import type { ApiResponse } from "@/types/api";
@@ -81,6 +83,20 @@ const defaultForm: PostFormData = {
   tagSlugs: [],
 };
 
+function getImageWidth(title?: string | null) {
+  const match = title?.match(/^width=(\d{1,3}%|\d{2,4}px)$/);
+  if (!match) return undefined;
+
+  const width = match[1];
+  if (width.endsWith("%")) {
+    const percent = Number.parseInt(width, 10);
+    return percent >= 1 && percent <= 100 ? width : undefined;
+  }
+
+  const pixels = Number.parseInt(width, 10);
+  return pixels >= 120 && pixels <= 1600 ? width : undefined;
+}
+
 export function AdminPostEditorPage({ editId }: { editId?: string }) {
   const router = useRouter();
   const [form, setForm] = useState<PostFormData>({ ...defaultForm });
@@ -88,9 +104,13 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
   const [tags, setTags] = useState<TagOption[]>([]);
   const [loaded, setLoaded] = useState(!editId);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [mediaRows, setMediaRows] = useState<MediaRow[]>([]);
   const [imageSize, setImageSize] = useState("100%");
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,7 +230,10 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
   function insertMedia(url: string, fileName: string) {
     const separator = form.content.trim() ? "\n\n" : "";
     const sizeTitle = imageSize === "100%" ? "" : ` "width=${imageSize}"`;
-    updateField("content", `${form.content}${separator}![${fileName}](${url}${sizeTitle})\n`);
+    updateField(
+      "content",
+      `${form.content}${separator}![${fileName}](${url}${sizeTitle})\n`,
+    );
     setMessage({ type: "success", text: "图片已插入正文末尾" });
   }
 
@@ -246,7 +269,10 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
       const data = await response.json();
 
       if (response.ok && data.code === 0) {
-        setMessage({ type: "success", text: editId ? "文章已更新" : "文章已创建" });
+        setMessage({
+          type: "success",
+          text: editId ? "文章已更新" : "文章已创建",
+        });
         if (!editId) {
           setTimeout(() => router.push("/admin/posts"), 1000);
         }
@@ -279,7 +305,9 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
           <select
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none"
             value={form.status}
-            onChange={(e) => updateField("status", e.target.value as PostFormData["status"])}
+            onChange={(e) =>
+              updateField("status", e.target.value as PostFormData["status"])
+            }
           >
             <option value="DRAFT">草稿</option>
             <option value="PUBLISHED">发布</option>
@@ -344,7 +372,7 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700">URL Slug</span>
             <input
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-mono placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
               placeholder="url-friendly-slug"
               value={form.slug}
               onChange={(e) => updateField("slug", e.target.value)}
@@ -381,7 +409,10 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
               value={form.categoryId === "" ? "" : String(form.categoryId)}
               onChange={(e) =>
-                updateField("categoryId", e.target.value ? Number(e.target.value) : "")
+                updateField(
+                  "categoryId",
+                  e.target.value ? Number(e.target.value) : "",
+                )
               }
             >
               <option value="">不选择</option>
@@ -412,29 +443,46 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
               ))}
             </div>
             {form.tagSlugs.length > 0 ? (
-              <p className="mt-1 text-xs text-slate-400">已选：{form.tagSlugs.join(", ")}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                已选：{form.tagSlugs.join(", ")}
+              </p>
             ) : null}
           </label>
         </div>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-slate-700">
-            正文内容 <span className="font-normal text-slate-400">(Markdown)</span>
+          <span className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-slate-700">
+            <span>
+              正文内容{" "}
+              <span className="font-normal text-slate-400">(Markdown)</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowPreview((visible) => !visible)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-emerald-400 hover:text-emerald-700"
+            >
+              {showPreview ? "关闭预览" : "实时预览"}
+            </button>
           </span>
           {mediaRows.length > 0 ? (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2">
               <select
                 defaultValue=""
                 onChange={(event) => {
-                  const selected = mediaRows.find((row) => row.id === event.target.value);
-                  if (selected) insertMedia(selected.values.url, selected.values.fileName);
+                  const selected = mediaRows.find(
+                    (row) => row.id === event.target.value,
+                  );
+                  if (selected)
+                    insertMedia(selected.values.url, selected.values.fileName);
                   event.target.value = "";
                 }}
                 className="min-w-56 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none"
               >
                 <option value="">从媒体库选择图片并插入...</option>
                 {mediaRows.map((row) => (
-                  <option key={row.id} value={row.id}>{row.values.fileName}</option>
+                  <option key={row.id} value={row.id}>
+                    {row.values.fileName}
+                  </option>
                 ))}
               </select>
               <label className="flex items-center gap-2 text-xs text-slate-600">
@@ -451,20 +499,87 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
                   <option value="640px">640px</option>
                 </select>
               </label>
-              <Link href="/admin/media" className="text-xs font-medium text-emerald-700 hover:underline">
+              <Link
+                href="/admin/media"
+                className="text-xs font-medium text-emerald-700 hover:underline"
+              >
                 查看和管理图片
               </Link>
             </div>
           ) : (
-            <p className="text-xs text-slate-400">媒体库暂无图片，先去 <Link href="/admin/media" className="text-emerald-700 hover:underline">上传图片</Link>。</p>
+            <p className="text-xs text-slate-400">
+              媒体库暂无图片，先去{" "}
+              <Link
+                href="/admin/media"
+                className="text-emerald-700 hover:underline"
+              >
+                上传图片
+              </Link>
+              。
+            </p>
           )}
-          <textarea
-            className="min-h-[320px] w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm leading-relaxed placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
-            placeholder="# 标题\n\n## 第一段\n\n写点东西...\n"
-            value={form.content}
-            onChange={(e) => updateField("content", e.target.value)}
-          />
-          <p className="text-xs text-slate-400">支持 Markdown 语法。代码块请用三个反引号包裹。</p>
+          <div
+            className={showPreview ? "grid gap-4 lg:grid-cols-2" : undefined}
+          >
+            <textarea
+              className="min-h-[320px] w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm leading-relaxed placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
+              placeholder="# 标题\n\n## 第一段\n\n写点东西...\n"
+              value={form.content}
+              onChange={(e) => updateField("content", e.target.value)}
+            />
+            {showPreview ? (
+              <div className="min-h-[320px] overflow-auto rounded-xl border border-emerald-100 bg-emerald-50/30 p-5">
+                <p className="mb-4 text-xs font-medium text-emerald-700">
+                  实时预览
+                </p>
+                {form.content.trim() ? (
+                  <div className="prose prose-slate max-w-none">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        img({ src, alt, title }) {
+                          if (
+                            typeof src !== "string" ||
+                            !src.startsWith("/uploads/")
+                          )
+                            return null;
+                          const width = getImageWidth(title);
+                          return (
+                            <figure className="not-prose my-5 overflow-hidden rounded-xl border border-slate-100 bg-white">
+                              <img
+                                src={src}
+                                alt={alt ?? ""}
+                                style={
+                                  width
+                                    ? { width, maxWidth: "100%" }
+                                    : undefined
+                                }
+                                className="mx-auto h-auto max-h-[500px] object-contain"
+                              />
+                              {alt ? (
+                                <figcaption className="px-3 py-2 text-center text-xs text-slate-500">
+                                  {alt}
+                                </figcaption>
+                              ) : null}
+                            </figure>
+                          );
+                        },
+                      }}
+                    >
+                      {form.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="py-16 text-center text-sm text-slate-400">
+                    开始输入 Markdown 后在这里预览效果。
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+          <p className="text-xs text-slate-400">
+            支持 Markdown 语法。代码块请用三个反引号包裹。
+          </p>
         </label>
       </form>
     </AdminShell>
