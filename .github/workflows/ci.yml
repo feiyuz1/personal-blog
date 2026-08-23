@@ -25,6 +25,10 @@ jobs:
         run: npm ci || npm install
 
       - name: 生成 Prisma Client
+        # Prisma 配置会校验这两个变量；generate 不会连接这些占位数据库。
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          SHADOW_DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/template1
         run: npx prisma generate
 
       - name: ESLint 代码检查
