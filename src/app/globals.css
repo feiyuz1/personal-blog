@@ -42,3 +42,118 @@ a {
 ::selection {
   background: rgba(59, 130, 102, 0.18);
 }
+
+/* live2d-widgets theme overrides */
+body #waifu {
+  top: auto;
+  right: 1.5rem;
+  bottom: 0;
+  left: auto;
+  z-index: 40;
+}
+
+body #waifu-toggle {
+  right: 0;
+  left: auto;
+  justify-content: flex-start;
+  margin-right: -100px;
+  margin-left: 0;
+  background-color: #3b8266;
+}
+
+body #waifu-toggle.waifu-toggle-active {
+  margin-right: -50px;
+  margin-left: 0;
+}
+
+body #waifu-toggle.waifu-toggle-active:hover {
+  margin-right: -30px;
+  margin-left: 0;
+}
+
+body #waifu-tips,
+body #waifu-expression-tips {
+  right: 1rem;
+  margin: -38px 0 0;
+  border-color: rgba(59, 130, 102, 0.2);
+  background-color: rgba(255, 253, 248, 0.94);
+  box-shadow: 0 14px 36px rgba(34, 58, 45, 0.14);
+  color: #475569;
+  backdrop-filter: blur(12px);
+}
+
+body #waifu-expression-tips {
+  position: absolute;
+  width: 250px;
+  min-height: 70px;
+  border: 1px solid rgba(59, 130, 102, 0.2);
+  border-radius: 12px;
+  padding: 5px 10px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 24px;
+  word-break: break-all;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+body #waifu-expression-tips.waifu-expression-tips-active {
+  opacity: 1;
+}
+
+body #waifu[data-expression-active="true"] #waifu-tips {
+  opacity: 0;
+}
+
+body #waifu-tips span {
+  color: #2f6e56;
+}
+
+body #live2d {
+  width: 360px !important;
+  height: 360px !important;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+body #live2d:active,
+body #waifu[data-dragging="true"] #live2d {
+  cursor: grabbing;
+}
+
+body #waifu-tool svg {
+  fill: #64746c;
+}
+
+body #waifu-tool svg:hover {
+  fill: #2f6e56;
+}
+
+@media (max-width: 640px) {
+  body #waifu {
+    right: 0.5rem;
+  }
+
+  body #live2d {
+    width: 240px !important;
+    height: 240px !important;
+  }
+
+  body #waifu-tips,
+  body #waifu-expression-tips {
+    right: 0.5rem;
+    width: 210px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #waifu,
+  #waifu-toggle,
+  #waifu-tips,
+  #waifu-expression-tips {
+    animation: none;
+    transition-duration: 0.01ms;
+  }
+}

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored browser distribution; see public/live2d/widget/README.md.
+    "public/live2d/widget/**",
   ]),
 ]);
 

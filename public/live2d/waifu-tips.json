@@ -1,0 +1,90 @@
+{
+  "mouseover": [
+    {
+      "selector": "header a[href='/']",
+      "text": ["这里是首页，随时可以回来看看。", "要回到首页吗？我陪你一起。"]
+    },
+    {
+      "selector": "a[href='/blog']",
+      "text": ["所有技术笔记都整理在这里啦。", "去文章列表找点新知识吧！"]
+    },
+    {
+      "selector": "a[href='/projects']",
+      "text": ["这里收藏着主人的项目和练习。", "想看看最近做了什么项目吗？"]
+    },
+    {
+      "selector": "a[href='/categories'], a[href^='/categories/']",
+      "text": ["按分类浏览会更容易找到感兴趣的内容。"]
+    },
+    {
+      "selector": "a[href='/tags'], a[href^='/tags/']",
+      "text": ["标签是探索技术主题的小路标。"]
+    },
+    {
+      "selector": "a[href='/search']",
+      "text": ["在找什么？让我帮你搜索一下。"]
+    },
+    {
+      "selector": "#waifu-tool-photo",
+      "text": ["要给我拍张照片吗？记得选好角度哦。"]
+    },
+    {
+      "selector": "#waifu-tool-info",
+      "text": ["这里可以查看让我动起来的开源项目。"]
+    },
+    {
+      "selector": "#waifu-tool-quit",
+      "text": ["想让我先休息一会儿吗？之后还能叫我回来。"]
+    }
+  ],
+  "click": [
+    {
+      "selector": "a[href^='/posts/']",
+      "text": ["选中这篇啦，祝你阅读愉快！"]
+    }
+  ],
+  "seasons": [],
+  "time": [
+    { "hour": "6-10", "text": "早上好，新的一天也一起学习吧！" },
+    { "hour": "11-13", "text": "中午好，读文章也要记得按时吃饭。" },
+    { "hour": "14-17", "text": "下午好，累了就起来活动一下吧。" },
+    { "hour": "18-22", "text": "晚上好，今天想了解什么技术？" },
+    { "hour": "23-5", "text": "已经很晚啦，保护眼睛，早点休息哦。" }
+  ],
+  "message": {
+    "default": [
+      "写代码累了就伸个懒腰吧。",
+      "遇到不懂的地方，慢慢拆开来看就好。",
+      "今天也在认真积累知识呢。"
+    ],
+    "console": "发现控制台！是在研究网站的实现吗？",
+    "copy": "内容复制好啦，引用时记得注明来源哦。",
+    "visibilitychange": "欢迎回来，我们继续吧！",
+    "changeSuccess": "新造型加载完成！",
+    "changeFail": "我暂时只有这一套衣服呢。",
+    "photo": "拍好了吗？让我看看！",
+    "goodbye": "那我先休息一会儿，待会儿见。",
+    "hitokoto": "这句话来自 <span>「$1」</span>，由 <span>$2</span> 投稿。",
+    "welcome": "欢迎阅读 <span>「$1」</span>",
+    "referrer": "欢迎来自 <span>$1</span> 的朋友",
+    "hoverBody": ["有什么需要我帮忙的吗？", "我在这里陪你阅读。"],
+    "tapBody": [
+      "你好呀！很高兴见到你。",
+      "今天也一起加油吧！",
+      "要去看看最新文章吗？",
+      "欸嘿，被你发现我在偷懒啦。",
+      "有什么想看的内容，可以去搜索框告诉我哦。",
+      "摸摸头的话，今天会有好运气的！",
+      "如果我挡住内容，按住我就可以拖到旁边哦。"
+    ]
+  },
+  "models": [
+    {
+      "name": "Pachan 2.0",
+      "paths": [
+        "/pet/pachan%202.0/pachirisu%20anime%20girl%20-%20top%20half.model3.json"
+      ],
+      "message": "Pachan 来啦，请多指教！"
+    }
+  ]
+}
