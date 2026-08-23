@@ -22,6 +22,10 @@ jobs:
           cache: npm
 
       - name: 安装依赖
+        # npm ci 会自动触发 package.json 中的 postinstall（Prisma generate）。
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          SHADOW_DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/template1
         run: npm ci || npm install
 
       - name: 生成 Prisma Client
