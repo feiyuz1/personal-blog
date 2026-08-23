@@ -6,6 +6,7 @@ import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
 const adminNav = [
   { label: "概览", href: "/admin" },
   { label: "文章管理", href: "/admin/posts" },
+  { label: "项目管理", href: "/admin/projects" },
   { label: "分类标签", href: "/admin/categories" },
   { label: "媒体资源", href: "/admin/media" },
   { label: "评论审核", href: "/admin/comments" },

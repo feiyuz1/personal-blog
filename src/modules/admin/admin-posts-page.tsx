@@ -75,7 +75,11 @@ export function AdminPostsPage({
   const [error, setError] = useState<string | null>(null);
 
   // 拉取指定条件下的文章列表
-  async function loadPage(targetPage: number, targetStatus: string, targetKeyword: string) {
+  async function loadPage(
+    targetPage: number,
+    targetStatus: string,
+    targetKeyword: string,
+  ) {
     setLoading(true);
     setError(null);
     try {
@@ -87,7 +91,11 @@ export function AdminPostsPage({
       if (targetKeyword) params.set("keyword", targetKeyword);
 
       const res = await fetch(`/api/admin/posts?${params.toString()}`);
-      const json = (await res.json()) as { code: number; data: PostListResponse; message?: string };
+      const json = (await res.json()) as {
+        code: number;
+        data: PostListResponse;
+        message?: string;
+      };
       if (json.code === 0 && json.data) {
         setRows(json.data.rows);
         setTotal(json.data.total);
@@ -146,9 +154,9 @@ export function AdminPostsPage({
   // 状态对应颜色
   const statusColor: Record<string, string> = {
     草稿: "text-slate-500",
-    "已发布": "text-emerald-600",
-    "已发布(置顶)": "text-emerald-700 font-semibold",
-    "已下线": "text-rose-600",
+    已发布: "text-emerald-600",
+    "已发布(精华)": "text-emerald-700 font-semibold",
+    已下线: "text-rose-600",
   };
 
   return (
@@ -231,7 +239,11 @@ export function AdminPostsPage({
                         className="px-4 py-3 text-sm text-slate-600"
                       >
                         {col.key === "status" ? (
-                          <span className={statusColor[row.values.status] ?? "text-slate-600"}>
+                          <span
+                            className={
+                              statusColor[row.values.status] ?? "text-slate-600"
+                            }
+                          >
                             {row.values.status}
                           </span>
                         ) : (
@@ -262,7 +274,9 @@ export function AdminPostsPage({
             </table>
           </div>
         ) : loading ? (
-          <div className="py-12 text-center text-sm text-slate-400">正在加载...</div>
+          <div className="py-12 text-center text-sm text-slate-400">
+            正在加载...
+          </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-10 text-center text-sm text-slate-400">
             暂无文章，点击左上角「新建文章」开始创建。

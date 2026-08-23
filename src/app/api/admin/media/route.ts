@@ -3,14 +3,28 @@ import { randomUUID } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import { basename, extname, join } from "path";
 
-import { badRequest, forbidden, ok, payloadTooLarge, unauthorized } from "@/lib/api-response";
+import {
+  badRequest,
+  forbidden,
+  ok,
+  payloadTooLarge,
+  unauthorized,
+} from "@/lib/api-response";
 import { getAdminSession } from "@/lib/auth/session";
 import { verifySameOrigin } from "@/lib/request-origin";
 import { prisma } from "@/lib/prisma";
 
-const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 MB
+const ALLOWED_FILES = new Map([
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".png", "image/png"],
+  [".webp", "image/webp"],
+  [".gif", "image/gif"],
+  [".mp4", "video/mp4"],
+  [".webm", "video/webm"],
+]);
+const MAX_IMAGE_FILE_SIZE = 30 * 1024 * 1024;
+const MAX_VIDEO_FILE_SIZE = 100 * 1024 * 1024;
 
 /** GET /api/admin/media - 分页获取媒体文件列表 */
 export async function GET(request: Request) {
@@ -51,7 +65,7 @@ export async function GET(request: Request) {
   }
 }
 
-/** POST /api/admin/media - 上传图片文件 */
+/** POST /api/admin/media - 上传图片或项目演示视频。 */
 export async function POST(request: Request) {
   const session = await getAdminSession();
   if (!session) {
@@ -70,24 +84,31 @@ export async function POST(request: Request) {
       return badRequest("请选择文件上传");
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return payloadTooLarge("文件大小不能超过 30 MB");
-    }
-
     const ext = extname(file.name).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return badRequest("仅支持 jpg/jpeg/png/webp/gif 图片");
+    const expectedMime = ALLOWED_FILES.get(ext);
+    if (!expectedMime) {
+      return badRequest("仅支持 jpg/jpeg/png/webp/gif 图片或 mp4/webm 视频");
     }
-
-    if (!ALLOWED_MIME.has(file.type)) {
+    if (file.type !== expectedMime) {
       return badRequest("文件类型不合法");
+    }
+    const sizeLimit = file.type.startsWith("video/")
+      ? MAX_VIDEO_FILE_SIZE
+      : MAX_IMAGE_FILE_SIZE;
+    if (file.size > sizeLimit) {
+      return payloadTooLarge(
+        file.type.startsWith("video/")
+          ? "视频大小不能超过 100 MB"
+          : "图片大小不能超过 30 MB",
+      );
     }
 
     // 磁盘文件名一律用随机 UUID，杜绝路径穿越与文件名冲突；
     // 原始文件名仅做 basename 后存库用于展示。
     const storedName = `${randomUUID()}${ext}`;
     const urlPath = `/uploads/${storedName}`;
-    const uploadDir = process.env.MEDIA_UPLOAD_DIR ?? join(process.cwd(), "public", "uploads");
+    const uploadDir =
+      process.env.MEDIA_UPLOAD_DIR ?? join(process.cwd(), "public", "uploads");
 
     await mkdir(uploadDir, { recursive: true });
     const buffer = Buffer.from(await file.arrayBuffer());

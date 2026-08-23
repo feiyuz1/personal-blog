@@ -11,7 +11,7 @@ export function ProjectsPage({ projects }: { projects: ProjectDetail[] }) {
       <PageHero
         eyebrow="Projects"
         title="项目作品集"
-        description="这里展示我参与或主导的项目，涵盖全栈开发、工具链和设计系统等领域。每个项目都有详细的技术栈、职责说明和阶段总结。"
+        description="这里记录 C++、图形学与 Unreal Engine 方向的项目和练习。点击卡片的图片或视频可放大查看，进入详情页还能看到技术栈、职责与阶段总结。"
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -24,25 +24,13 @@ export function ProjectsPage({ projects }: { projects: ProjectDetail[] }) {
         <Panel title="" description="">
           <div className="py-12 text-center">
             <p className="text-lg font-semibold text-slate-900">暂无项目</p>
-            <p className="mt-2 text-sm text-slate-500">
-              项目信息将在后续补充
-            </p>
+            <p className="mt-2 text-sm text-slate-500">项目信息将在后续补充</p>
           </div>
         </Panel>
       ) : null}
 
-      <Panel
-        title="关于项目展示"
-        description=""
-      >
+      <Panel title="关于项目展示" description="">
         <div className="space-y-3 text-sm leading-7 text-slate-600">
-          <p>
-            每个项目卡片展示了名称、状态、技术栈和简要描述，点击可进入详情页查看更多信息。
-          </p>
-          <p>
-            详情页包含项目亮点、里程碑时间线、关联文章链接以及仓库地址。
-            部分项目还提供在线预览链接。
-          </p>
           <p>
             项目状态分为：{" "}
             <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -60,7 +48,10 @@ export function ProjectsPage({ projects }: { projects: ProjectDetail[] }) {
           </p>
           <p>
             如果你对某个项目的技术选型或实现细节感兴趣，欢迎通过{" "}
-            <Link href="/contact" className="font-medium text-emerald-800 hover:underline">
+            <Link
+              href="/contact"
+              className="font-medium text-emerald-800 hover:underline"
+            >
               联系方式
             </Link>{" "}
             与我交流。

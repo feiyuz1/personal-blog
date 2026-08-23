@@ -5,6 +5,7 @@ import {
   getSiteConfig,
   listPostsByCategory,
 } from "@/services/content-service";
+import { notFound } from "next/navigation";
 
 export default async function CategoryDetailPage({
   params,
@@ -17,6 +18,8 @@ export default async function CategoryDetailPage({
     getCategoryBySlug(slug),
     listPostsByCategory(slug),
   ]);
+
+  if (!category) notFound();
 
   return (
     <SiteShell config={config}>

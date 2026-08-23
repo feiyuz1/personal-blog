@@ -34,10 +34,9 @@ export async function GET() {
       settings = await prisma.siteSetting.create({
         data: {
           siteTitle: "Feiyuz Blog",
-          siteSubtitle: "Full-stack development, writing, and project notes",
-          seoTitle: "Feiyuz Blog - Full-stack development, writing, and project notes",
-          seoDescription:
-            "A personal blog for technical articles, project notes, and learning records.",
+          siteSubtitle: "C++、图形学与 Unreal Engine 学习笔记",
+          seoTitle: "Feiyuz Blog - C++、图形学与 Unreal Engine 学习笔记",
+          seoDescription: "专注 C++、图形学与 Unreal Engine 的个人技术博客。",
         },
       });
     }

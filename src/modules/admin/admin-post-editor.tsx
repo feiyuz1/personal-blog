@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { MarkdownContent } from "@/components/content/markdown-content";
@@ -34,7 +34,6 @@ interface TagOption {
 interface AdminCategoryRow {
   id: string;
   values: {
-    _type: string;
     name: string;
     slug: string;
   };
@@ -96,6 +95,8 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
   const [mediaRows, setMediaRows] = useState<MediaRow[]>([]);
   const [imageSize, setImageSize] = useState("100%");
   const [showPreview, setShowPreview] = useState(false);
+  const contentInputRef = useRef<HTMLTextAreaElement>(null);
+  const contentSelectionRef = useRef({ start: 0, end: 0 });
 
   useEffect(() => {
     let cancelled = false;
@@ -106,13 +107,11 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
         if (cancelled || !Array.isArray(data.data)) return;
 
         setCategories(
-          data.data
-            .filter((row) => row.values._type === "分类")
-            .map((row) => ({
-              id: row.id,
-              name: row.values.name,
-              slug: row.values.slug,
-            })),
+          data.data.map((row) => ({
+            id: row.id,
+            name: row.values.name,
+            slug: row.values.slug,
+          })),
         );
       })
       .catch(() => {});
@@ -129,7 +128,11 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
       .then((response) => response.json())
       .then((data: ApiResponse<MediaListResponse>) => {
         if (!cancelled && Array.isArray(data.data?.rows)) {
-          setMediaRows(data.data.rows);
+          setMediaRows(
+            data.data.rows.filter((row) =>
+              row.values.type.startsWith("image/"),
+            ),
+          );
         }
       })
       .catch(() => {});
@@ -213,13 +216,23 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
   }
 
   function insertMedia(url: string, fileName: string) {
-    const separator = form.content.trim() ? "\n\n" : "";
     const sizeTitle = imageSize === "100%" ? "" : ` "width=${imageSize}"`;
-    updateField(
-      "content",
-      `${form.content}${separator}![${fileName}](${url}${sizeTitle})\n`,
-    );
-    setMessage({ type: "success", text: "图片已插入正文末尾" });
+    const markdown = `![${fileName}](${url}${sizeTitle})`;
+    const { start, end } = contentSelectionRef.current;
+    const before = form.content.slice(0, start);
+    const after = form.content.slice(end);
+    const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
+    const suffix = after && !after.startsWith("\n") ? "\n" : "";
+    const content = `${before}${prefix}${markdown}${suffix}${after}`;
+    const cursor = before.length + prefix.length + markdown.length;
+
+    updateField("content", content);
+    contentSelectionRef.current = { start: cursor, end: cursor };
+    requestAnimationFrame(() => {
+      contentInputRef.current?.focus();
+      contentInputRef.current?.setSelectionRange(cursor, cursor);
+    });
+    setMessage({ type: "success", text: "图片已插入当前光标位置" });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -239,9 +252,8 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
         tagSlugs: form.tagSlugs,
       };
 
-      if (form.categoryId) {
-        payload.categoryId = form.categoryId;
-      }
+      // 显式传 null，编辑已有文章时才能解除原分类关联。
+      payload.categoryId = form.categoryId || null;
 
       const url = editId ? `/api/admin/posts/${editId}` : "/api/admin/posts";
       const method = editId ? "PUT" : "POST";
@@ -299,14 +311,17 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
             <option value="OFFLINE">下线</option>
           </select>
 
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+          <label
+            className="flex items-center gap-2 text-sm text-slate-600"
+            title="勾选后，文章会显示在首页的“推荐文章”区域"
+          >
             <input
               type="checkbox"
               checked={form.isTop}
               onChange={(e) => updateField("isTop", e.target.checked)}
               className="h-4 w-4 rounded border-slate-300"
             />
-            置顶
+            首页精华文章
           </label>
         </div>
         <div className="flex gap-2">
@@ -507,10 +522,29 @@ export function AdminPostEditorPage({ editId }: { editId?: string }) {
             className={showPreview ? "grid gap-4 lg:grid-cols-2" : undefined}
           >
             <textarea
+              ref={contentInputRef}
               className="min-h-[320px] w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm leading-relaxed placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
               placeholder="# 标题\n\n## 第一段\n\n写点东西...\n"
               value={form.content}
               onChange={(e) => updateField("content", e.target.value)}
+              onSelect={(event) => {
+                contentSelectionRef.current = {
+                  start: event.currentTarget.selectionStart,
+                  end: event.currentTarget.selectionEnd,
+                };
+              }}
+              onKeyUp={(event) => {
+                contentSelectionRef.current = {
+                  start: event.currentTarget.selectionStart,
+                  end: event.currentTarget.selectionEnd,
+                };
+              }}
+              onClick={(event) => {
+                contentSelectionRef.current = {
+                  start: event.currentTarget.selectionStart,
+                  end: event.currentTarget.selectionEnd,
+                };
+              }}
             />
             {showPreview ? (
               <div className="min-h-[320px] overflow-auto rounded-xl border border-emerald-100 bg-emerald-50/30 p-5">

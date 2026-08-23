@@ -5,6 +5,7 @@ import {
   getTagBySlug,
   listPostsByTag,
 } from "@/services/content-service";
+import { notFound } from "next/navigation";
 
 export default async function TagDetailPage({
   params,
@@ -17,6 +18,8 @@ export default async function TagDetailPage({
     getTagBySlug(slug),
     listPostsByTag(slug),
   ]);
+
+  if (!tag) notFound();
 
   return (
     <SiteShell config={config}>

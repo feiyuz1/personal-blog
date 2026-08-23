@@ -1,10 +1,52 @@
 import { unlink } from "fs/promises";
 import { basename, join } from "path";
 
-import { badRequest, forbidden, notFound, ok, unauthorized } from "@/lib/api-response";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  ok,
+  unauthorized,
+} from "@/lib/api-response";
 import { getAdminSession } from "@/lib/auth/session";
 import { verifySameOrigin } from "@/lib/request-origin";
 import { prisma } from "@/lib/prisma";
+
+const FILE_NAME_MAX = 255;
+
+/** PATCH /api/admin/media/[id] - 修改媒体展示名称，不改变实际文件 URL。 */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await getAdminSession();
+  if (!session) return unauthorized();
+  if (!verifySameOrigin(request)) return forbidden("来源校验失败");
+
+  try {
+    const { id } = await params;
+    const mediaId = BigInt(id);
+    const body = (await request.json()) as { fileName?: string };
+    const fileName = basename(body.fileName?.trim() ?? "");
+
+    if (!fileName) return badRequest("文件名不能为空");
+    if (fileName.length > FILE_NAME_MAX)
+      return badRequest("文件名不能超过 255 个字符");
+    if (fileName === "." || fileName === "..")
+      return badRequest("文件名不合法");
+
+    const media = await prisma.mediaFile.update({
+      where: { id: mediaId },
+      data: { fileName },
+    });
+    return ok(media, "重命名成功");
+  } catch (error) {
+    const cause = error as { code?: string };
+    if (cause.code === "P2025") return notFound("媒体不存在");
+    console.error("Media rename error:", error);
+    return badRequest("重命名失败");
+  }
+}
 
 /**
  * DELETE /api/admin/media/[id]
@@ -45,7 +87,8 @@ export async function DELETE(
   //    仅处理 /uploads 前缀的本地文件，避免误删其它路径。
   if (media.fileUrl.startsWith("/uploads/")) {
     const fileName = basename(media.fileUrl);
-    const uploadDir = process.env.MEDIA_UPLOAD_DIR ?? join(process.cwd(), "public", "uploads");
+    const uploadDir =
+      process.env.MEDIA_UPLOAD_DIR ?? join(process.cwd(), "public", "uploads");
     const filePath = join(uploadDir, fileName);
     try {
       await unlink(filePath);

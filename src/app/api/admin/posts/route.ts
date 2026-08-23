@@ -31,7 +31,7 @@ export async function GET(request: Request) {
         status:
           post.status === "PUBLISHED"
             ? post.isTop
-              ? "已发布(置顶)"
+              ? "已发布(精华)"
               : "已发布"
             : post.status === "DRAFT"
               ? "草稿"
@@ -44,7 +44,10 @@ export async function GET(request: Request) {
     return ok({ ...result, rows });
   } catch (error) {
     console.error("Admin posts GET error:", error);
-    return ok({ list: [], total: 0, page: 1, pageSize: 20, rows: [] }, "查询出错");
+    return ok(
+      { list: [], total: 0, page: 1, pageSize: 20, rows: [] },
+      "查询出错",
+    );
   }
 }
 
@@ -79,7 +82,7 @@ export async function POST(request: Request) {
       summary?: string;
       content?: string;
       readingTime?: string;
-      categoryId?: number;
+      categoryId?: number | null;
       isTop?: boolean;
       status?: "DRAFT" | "PUBLISHED" | "OFFLINE";
       tagSlugs?: string[];

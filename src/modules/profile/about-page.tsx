@@ -24,45 +24,10 @@ export function AboutPage({
 }: AboutPageProps) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 md:px-10 md:py-14">
-      <PageHero
-        eyebrow="About"
-        title="关于我"
-        description={profile.bio}
-        aside={
-          <div className="rounded-[1.5rem] bg-slate-950 p-6 text-slate-50">
-            <div className="flex items-center gap-4">
-              {/* 头像占位 */}
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-emerald-300">
-                {profile.name.charAt(0)}
-              </div>
-              <div>
-                <p className="text-lg font-semibold">{profile.name}</p>
-                <p className="text-sm text-slate-400">{profile.title}</p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-2 text-sm text-slate-300">
-              <p>
-                <span className="text-slate-500">所在地：</span>
-                {profile.location}
-              </p>
-              <p>
-                <span className="text-slate-500">工作经验：</span>
-                {profile.experience}
-              </p>
-              <p>
-                <span className="text-slate-500">学历：</span>
-                {profile.education}
-              </p>
-            </div>
-          </div>
-        }
-      />
+      <PageHero eyebrow="About" title="关于我" description={profile.bio} />
 
       {/* 技术栈 */}
-      <Panel
-        title="技术栈"
-        description="日常使用和熟练掌握的技术领域与工具"
-      >
+      <Panel title="技术栈" description="日常使用和熟练掌握的技术领域与工具">
         <TechStackGrid categories={techStacks} />
       </Panel>
 

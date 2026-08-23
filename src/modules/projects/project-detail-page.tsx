@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+/* 项目封面可使用管理员填写的受校验外部地址。 */
+/* eslint-disable @next/next/no-img-element */
+
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
@@ -13,10 +16,17 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusColor: Record<string, string> = {
-  planning: "rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600",
-  building: "rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700",
-  online: "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700",
+  planning:
+    "rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600",
+  building:
+    "rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700",
+  online:
+    "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700",
 };
+
+function isVideoUrl(url?: string) {
+  return Boolean(url && /\.(mp4|webm)(?:[?#].*)?$/i.test(url));
+}
 
 export function ProjectDetailPage({
   project,
@@ -61,7 +71,9 @@ export function ProjectDetailPage({
             </div>
 
             <div className="mt-5">
-              <span className={`inline-block ${statusColor[project.status] || statusColor.building}`}>
+              <span
+                className={`inline-block ${statusColor[project.status] || statusColor.building}`}
+              >
                 {statusLabel[project.status] || project.status}
               </span>
             </div>
@@ -69,12 +81,29 @@ export function ProjectDetailPage({
         }
       />
 
+      {project.coverUrl ? (
+        <section className="overflow-hidden rounded-[1.5rem] border border-black/5 bg-slate-950 shadow-[0_18px_44px_rgba(34,58,45,0.06)]">
+          {isVideoUrl(project.coverUrl) ? (
+            <video
+              src={project.coverUrl}
+              className="max-h-[70vh] w-full object-contain"
+              controls
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <img
+              src={project.coverUrl}
+              alt={`${project.name} 项目封面`}
+              className="max-h-[70vh] w-full object-contain"
+            />
+          )}
+        </section>
+      ) : null}
+
       {/* 项目亮点 + 里程碑 */}
       <div className="grid gap-8 lg:grid-cols-2">
-        <Panel
-          title="项目亮点"
-          description="这个项目的核心价值和特色"
-        >
+        <Panel title="项目亮点" description="这个项目的核心价值和特色">
           <ul className="space-y-3 text-sm leading-7 text-slate-700">
             {project.highlights.map((item) => (
               <li key={item} className="flex gap-2">
@@ -85,10 +114,7 @@ export function ProjectDetailPage({
           </ul>
         </Panel>
 
-        <Panel
-          title="里程碑"
-          description="项目进展中的关键节点"
-        >
+        <Panel title="里程碑" description="项目进展中的关键节点">
           <ul className="space-y-3 text-sm leading-7 text-slate-700">
             {project.milestones.map((item, index) => (
               <li key={item} className="flex gap-3">
@@ -103,7 +129,7 @@ export function ProjectDetailPage({
       </div>
 
       {/* 关联入口 */}
-      {(project.articleSlug || project.repositoryUrl || project.previewUrl) ? (
+      {project.articleSlug || project.repositoryUrl || project.previewUrl ? (
         <Panel title="相关链接" description="快速跳转到关联资源。">
           <div className="flex flex-wrap gap-3 text-sm">
             {project.articleSlug ? (

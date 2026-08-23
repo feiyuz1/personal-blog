@@ -2,9 +2,9 @@ import type { AboutSection, ContactChannel, SiteConfig } from "@/types/content";
 
 export const siteConfig: SiteConfig = {
   title: "Feiyuz Blog",
-  subtitle: "全栈开发、技术思考与项目沉淀",
+  subtitle: "C++、图形学与 Unreal Engine 学习笔记",
   description:
-    "一个技术博主的内容输出空间，聚焦 Web 全栈开发、架构设计、工程实践与个人成长。用代码记录思考，用文字沉淀知识。",
+    "一个技术学习者的内容输出空间，聚焦 C++、图形学与 Unreal Engine。用代码记录思考，用文字沉淀知识。",
   heroLabel: "Tech Blog",
   navItems: [
     { label: "首页", href: "/", description: "回到博客首页" },
@@ -16,7 +16,11 @@ export const siteConfig: SiteConfig = {
     { label: "联系我", href: "/contact", description: "取得联系" },
   ],
   footerLinks: [
-    { label: "GitHub", href: "https://github.com/", description: "我的 GitHub 主页" },
+    {
+      label: "GitHub",
+      href: "https://github.com/",
+      description: "我的 GitHub 主页",
+    },
     { label: "RSS 订阅", href: "/api/rss", description: "RSS 源" },
     { label: "后台入口", href: "/admin", description: "管理后台" },
   ],

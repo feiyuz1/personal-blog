@@ -63,6 +63,8 @@ export interface ProjectSummary {
   name: string;
   slug: string;
   summary: string;
+  /** 项目卡片顶部使用的图片或视频地址。 */
+  coverUrl?: string;
   techStack: string[];
   status: "planning" | "building" | "online";
   role: string;

@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
     ? posts.filter(
         (post) =>
           post.title.toLowerCase().includes(keyword) ||
-          post.summary.toLowerCase().includes(keyword),
+          post.summary.toLowerCase().includes(keyword) ||
+          post.tags.some((tag) => tag.name.toLowerCase().includes(keyword)),
       )
     : posts;
 

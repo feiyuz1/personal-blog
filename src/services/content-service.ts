@@ -1,4 +1,9 @@
-import { CommentStatus, PostStatus, Prisma, ProjectStatus } from "@prisma/client";
+import {
+  CommentStatus,
+  PostStatus,
+  Prisma,
+  ProjectStatus,
+} from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type {
@@ -25,7 +30,8 @@ const CONTENT_BLOCK_KEYS = {
   timeline: "timeline",
 } as const;
 
-type ContentBlockKey = (typeof CONTENT_BLOCK_KEYS)[keyof typeof CONTENT_BLOCK_KEYS];
+type ContentBlockKey =
+  (typeof CONTENT_BLOCK_KEYS)[keyof typeof CONTENT_BLOCK_KEYS];
 
 type ContentBlockMap = {
   [CONTENT_BLOCK_KEYS.siteConfig]: SiteConfig;
@@ -53,6 +59,7 @@ type ProjectRow = {
   slug: string;
   summary: string | null;
   techStack: string | null;
+  coverUrl: string | null;
   status: ProjectStatus;
   role: string | null;
   highlights: Prisma.JsonValue | null;
@@ -62,7 +69,9 @@ type ProjectRow = {
   projectUrl: string | null;
 };
 
-async function loadContentBlock<K extends ContentBlockKey>(key: K): Promise<ContentBlockMap[K] | null> {
+async function loadContentBlock<K extends ContentBlockKey>(
+  key: K,
+): Promise<ContentBlockMap[K] | null> {
   const block = await prisma.contentBlock.findUnique({ where: { key } });
 
   if (!block) {
@@ -119,7 +128,9 @@ function parseContentToSections(content: string): PostDetail["sections"] {
     sections.push({ title: "正文", body: [content] });
   }
 
-  return sections.length > 0 ? sections : [{ title: "正文", body: ["(暂无内容)"] }];
+  return sections.length > 0
+    ? sections
+    : [{ title: "正文", body: ["(暂无内容)"] }];
 }
 
 function extractToc(content: string): string[] {
@@ -145,6 +156,7 @@ function toProjectDetail(project: ProjectRow): ProjectDetail {
     name: project.name,
     slug: project.slug,
     summary: project.summary ?? "",
+    coverUrl: project.coverUrl ?? undefined,
     techStack: project.techStack ? JSON.parse(project.techStack) : [],
     status: statusMap[project.status],
     role: project.role ?? "",
@@ -177,7 +189,20 @@ const DEFAULT_PROFILE_INFO: ProfileInfo = {
 };
 
 export async function getSiteConfig(): Promise<SiteConfig> {
-  return (await loadContentBlock(CONTENT_BLOCK_KEYS.siteConfig)) ?? DEFAULT_SITE_CONFIG;
+  const [contentConfig, settings] = await Promise.all([
+    loadContentBlock(CONTENT_BLOCK_KEYS.siteConfig),
+    prisma.siteSetting.findFirst({ orderBy: { id: "asc" } }),
+  ]);
+  const config = contentConfig ?? DEFAULT_SITE_CONFIG;
+
+  // 后台设置是前台配置的可编辑覆盖层；导航、页脚链接等结构化内容仍由
+  // site-config 内容块维护，避免一次保存覆盖这些配置。
+  return {
+    ...config,
+    title: settings?.siteTitle || config.title,
+    subtitle: settings?.siteSubtitle || config.subtitle,
+    description: settings?.seoDescription || config.description,
+  };
 }
 
 export async function listFeaturedPosts(): Promise<PostSummary[]> {
@@ -256,7 +281,9 @@ export async function getPostBySlug(slug: string): Promise<PostDetail | null> {
 export async function listCategories(): Promise<CategorySummary[]> {
   const categories = await prisma.category.findMany({
     include: {
-      _count: { select: { posts: { where: { status: PostStatus.PUBLISHED } } } },
+      _count: {
+        select: { posts: { where: { status: PostStatus.PUBLISHED } } },
+      },
     },
     orderBy: { name: "asc" },
   });
@@ -269,11 +296,15 @@ export async function listCategories(): Promise<CategorySummary[]> {
   }));
 }
 
-export async function getCategoryBySlug(slug: string): Promise<CategorySummary | null> {
+export async function getCategoryBySlug(
+  slug: string,
+): Promise<CategorySummary | null> {
   const category = await prisma.category.findUnique({
     where: { slug: decodeURIComponent(slug) },
     include: {
-      _count: { select: { posts: { where: { status: PostStatus.PUBLISHED } } } },
+      _count: {
+        select: { posts: { where: { status: PostStatus.PUBLISHED } } },
+      },
     },
   });
 
@@ -287,7 +318,9 @@ export async function getCategoryBySlug(slug: string): Promise<CategorySummary |
   };
 }
 
-export async function listPostsByCategory(categorySlug: string): Promise<PostSummary[]> {
+export async function listPostsByCategory(
+  categorySlug: string,
+): Promise<PostSummary[]> {
   const posts = await prisma.post.findMany({
     where: {
       status: PostStatus.PUBLISHED,
@@ -370,6 +403,13 @@ export async function searchPosts(keyword: string): Promise<PostSummary[]> {
         { title: { contains: normalized, mode: "insensitive" } },
         { summary: { contains: normalized, mode: "insensitive" } },
         { content: { contains: normalized, mode: "insensitive" } },
+        {
+          postTags: {
+            some: {
+              tag: { name: { contains: normalized, mode: "insensitive" } },
+            },
+          },
+        },
       ],
     },
     orderBy: { publishedAt: "desc" },
@@ -389,7 +429,10 @@ export async function listArchiveGroups(): Promise<ArchiveGroup[]> {
     select: { title: true, slug: true, publishedAt: true },
   });
 
-  const byYear = new Map<string, Map<string, Array<{ title: string; slug: string; publishedAt: string }>>>();
+  const byYear = new Map<
+    string,
+    Map<string, Array<{ title: string; slug: string; publishedAt: string }>>
+  >();
 
   for (const post of posts) {
     if (!post.publishedAt) continue;
@@ -431,6 +474,7 @@ export async function listProjects(): Promise<ProjectDetail[]> {
       slug: project.slug,
       summary: project.summary,
       techStack: project.techStack,
+      coverUrl: project.coverUrl,
       status: project.status,
       role: project.role,
       highlights: project.highlights,
@@ -442,7 +486,9 @@ export async function listProjects(): Promise<ProjectDetail[]> {
   );
 }
 
-export async function getProjectBySlug(slug: string): Promise<ProjectDetail | null> {
+export async function getProjectBySlug(
+  slug: string,
+): Promise<ProjectDetail | null> {
   const project = await prisma.project.findUnique({ where: { slug } });
   if (!project) return null;
 
@@ -452,6 +498,7 @@ export async function getProjectBySlug(slug: string): Promise<ProjectDetail | nu
     slug: project.slug,
     summary: project.summary,
     techStack: project.techStack,
+    coverUrl: project.coverUrl,
     status: project.status,
     role: project.role,
     highlights: project.highlights,
@@ -467,11 +514,57 @@ export async function getAboutSections(): Promise<AboutSection[]> {
 }
 
 export async function getContactChannels(): Promise<ContactChannel[]> {
-  return (await loadContentBlock(CONTENT_BLOCK_KEYS.contactChannels)) ?? [];
+  const [contentChannels, settings] = await Promise.all([
+    loadContentBlock(CONTENT_BLOCK_KEYS.contactChannels),
+    prisma.siteSetting.findFirst({ orderBy: { id: "asc" } }),
+  ]);
+
+  const channels = contentChannels ?? [];
+  const socialLinks = settings?.socialLinks;
+  if (
+    !socialLinks ||
+    Array.isArray(socialLinks) ||
+    typeof socialLinks !== "object"
+  ) {
+    return channels;
+  }
+
+  const links = socialLinks as Record<string, unknown>;
+  const configuredChannels: ContactChannel[] = [];
+  const email = typeof links.email === "string" ? links.email.trim() : "";
+  if (email) {
+    configuredChannels.push({
+      label: "电子邮箱",
+      value: email,
+      href: `mailto:${email}`,
+      note: "欢迎通过邮件进行技术交流与合作沟通。",
+    });
+  }
+
+  for (const [key, value] of Object.entries(links)) {
+    if (key === "email" || typeof value !== "string" || !value.trim()) continue;
+    configuredChannels.push({
+      label: key,
+      value: value.trim(),
+      href: value.trim(),
+    });
+  }
+
+  // 后台社交链接优先，内容块里的同类渠道不重复显示。
+  const configuredLabels = new Set(
+    configuredChannels.map((channel) => channel.label),
+  );
+  return [
+    ...configuredChannels,
+    ...channels.filter((channel) => !configuredLabels.has(channel.label)),
+  ];
 }
 
 export async function getProfileInfo(): Promise<ProfileInfo> {
-  return (await loadContentBlock(CONTENT_BLOCK_KEYS.profileInfo)) ?? DEFAULT_PROFILE_INFO;
+  return (
+    (await loadContentBlock(CONTENT_BLOCK_KEYS.profileInfo)) ??
+    DEFAULT_PROFILE_INFO
+  );
 }
 
 export async function getTechStacks(): Promise<TechStackCategory[]> {
@@ -495,7 +588,9 @@ export interface CommentNode {
  * 获取某篇文章下已通过审核的评论，按 parentId 组织为树形结构。
  * 仅返回 APPROVED 状态的评论，PENDING/REJECTED 不对外展示。
  */
-export async function listApprovedComments(postId: bigint): Promise<CommentNode[]> {
+export async function listApprovedComments(
+  postId: bigint,
+): Promise<CommentNode[]> {
   const comments = await prisma.comment.findMany({
     where: { postId, status: CommentStatus.APPROVED },
     orderBy: { createdAt: "asc" },

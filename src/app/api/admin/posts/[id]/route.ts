@@ -81,7 +81,7 @@ export async function PUT(
       summary?: string;
       content?: string;
       readingTime?: string;
-      categoryId?: number;
+      categoryId?: number | null;
       isTop?: boolean;
       status?: "DRAFT" | "PUBLISHED" | "OFFLINE";
       tagSlugs?: string[];

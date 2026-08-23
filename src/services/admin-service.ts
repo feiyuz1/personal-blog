@@ -1,5 +1,10 @@
 import { compare } from "bcryptjs";
-import { CommentStatus, PostStatus, Prisma } from "@prisma/client";
+import {
+  CommentStatus,
+  PostStatus,
+  Prisma,
+  ProjectStatus,
+} from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { AdminOverview } from "@/types/content";
@@ -37,17 +42,11 @@ type AdminPostRecord = Prisma.PostGetPayload<{
   };
 }>;
 
-const POST_STATUS_VALUES = new Set([
-  "DRAFT",
-  "PUBLISHED",
-  "OFFLINE",
-]);
+const POST_STATUS_VALUES = new Set(["DRAFT", "PUBLISHED", "OFFLINE"]);
 
-const COMMENT_STATUS_VALUES = new Set([
-  "PENDING",
-  "APPROVED",
-  "REJECTED",
-]);
+const COMMENT_STATUS_VALUES = new Set(["PENDING", "APPROVED", "REJECTED"]);
+
+const PROJECT_STATUS_VALUES = new Set(["PLANNING", "BUILDING", "ONLINE"]);
 
 function normalizePostStatus(status?: string): PostStatus | undefined {
   if (!status || status === "all" || !POST_STATUS_VALUES.has(status)) {
@@ -57,14 +56,17 @@ function normalizePostStatus(status?: string): PostStatus | undefined {
 }
 
 function normalizeCommentStatus(status?: string): CommentStatus | undefined {
-  if (
-    !status ||
-    status === "all" ||
-    !COMMENT_STATUS_VALUES.has(status)
-  ) {
+  if (!status || status === "all" || !COMMENT_STATUS_VALUES.has(status)) {
     return undefined;
   }
   return status as CommentStatus;
+}
+
+function normalizeProjectStatus(status?: string): ProjectStatus | undefined {
+  if (!status || status === "all" || !PROJECT_STATUS_VALUES.has(status)) {
+    return undefined;
+  }
+  return status as ProjectStatus;
 }
 
 function toAdminPostRecord(post: AdminPostRecord) {
@@ -74,7 +76,10 @@ function toAdminPostRecord(post: AdminPostRecord) {
   };
 }
 
-export async function loginAdmin(username: string, password: string): Promise<LoginResult> {
+export async function loginAdmin(
+  username: string,
+  password: string,
+): Promise<LoginResult> {
   try {
     const user = await prisma.user.findUnique({ where: { username } });
 
@@ -173,6 +178,11 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         href: "/admin/media",
         description: "上传和管理图片等媒体文件。",
       },
+      {
+        label: "项目管理",
+        href: "/admin/projects",
+        description: "维护项目卡片、图片/视频与详情内容。",
+      },
     ],
   };
 }
@@ -183,13 +193,15 @@ interface CreatePostInput {
   summary?: string;
   content?: string;
   readingTime?: string;
-  categoryId?: number | bigint;
+  categoryId?: number | bigint | null;
   isTop?: boolean;
   status?: PostStatus;
   tagSlugs?: string[];
 }
 
-export async function createPost(input: CreatePostInput & { authorId: bigint }) {
+export async function createPost(
+  input: CreatePostInput & { authorId: bigint },
+) {
   const { tagSlugs, status = PostStatus.DRAFT, ...data } = input;
 
   return prisma.post.create({
@@ -427,10 +439,194 @@ export async function reviewComment(
 ) {
   switch (action) {
     case "approve":
-      return prisma.comment.update({ where: { id }, data: { status: CommentStatus.APPROVED } });
+      return prisma.comment.update({
+        where: { id },
+        data: { status: CommentStatus.APPROVED },
+      });
     case "reject":
-      return prisma.comment.update({ where: { id }, data: { status: CommentStatus.REJECTED } });
+      return prisma.comment.update({
+        where: { id },
+        data: { status: CommentStatus.REJECTED },
+      });
     case "delete":
       return prisma.comment.delete({ where: { id } });
   }
+}
+
+export interface AdminProjectRecord {
+  id: string;
+  name: string;
+  slug: string;
+  summary: string;
+  coverUrl: string;
+  techStack: string[];
+  status: ProjectStatus;
+  role: string;
+  highlights: string[];
+  milestones: string[];
+  articleSlug: string;
+  githubUrl: string;
+  projectUrl: string;
+  sortOrder: number;
+}
+
+function parseStringArray(value: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function toAdminProjectRecord(project: {
+  id: bigint;
+  name: string;
+  slug: string;
+  summary: string | null;
+  coverUrl: string | null;
+  techStack: string | null;
+  status: ProjectStatus;
+  role: string | null;
+  highlights: Prisma.JsonValue | null;
+  milestones: Prisma.JsonValue | null;
+  articleSlug: string | null;
+  githubUrl: string | null;
+  projectUrl: string | null;
+  sortOrder: number;
+}): AdminProjectRecord {
+  const toJsonStringArray = (value: Prisma.JsonValue | null): string[] =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [];
+
+  return {
+    id: String(project.id),
+    name: project.name,
+    slug: project.slug,
+    summary: project.summary ?? "",
+    coverUrl: project.coverUrl ?? "",
+    techStack: parseStringArray(project.techStack),
+    status: project.status,
+    role: project.role ?? "",
+    highlights: toJsonStringArray(project.highlights),
+    milestones: toJsonStringArray(project.milestones),
+    articleSlug: project.articleSlug ?? "",
+    githubUrl: project.githubUrl ?? "",
+    projectUrl: project.projectUrl ?? "",
+    sortOrder: project.sortOrder,
+  };
+}
+
+export interface ProjectInput {
+  name: string;
+  slug: string;
+  summary?: string;
+  coverUrl?: string;
+  techStack?: string[];
+  status?: ProjectStatus;
+  role?: string;
+  highlights?: string[];
+  milestones?: string[];
+  articleSlug?: string;
+  githubUrl?: string;
+  projectUrl?: string;
+  sortOrder?: number;
+}
+
+export async function listAllProjects(options?: {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  status?: string;
+}) {
+  const page = Math.max(1, options?.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 20));
+  const status = normalizeProjectStatus(options?.status);
+  const where: Prisma.ProjectWhereInput = {};
+
+  if (status) where.status = status;
+  if (options?.keyword) {
+    where.OR = [
+      { name: { contains: options.keyword, mode: "insensitive" } },
+      { slug: { contains: options.keyword, mode: "insensitive" } },
+      { summary: { contains: options.keyword, mode: "insensitive" } },
+    ];
+  }
+
+  const [list, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return { list: list.map(toAdminProjectRecord), total, page, pageSize };
+}
+
+export async function getProjectById(id: bigint) {
+  const project = await prisma.project.findUnique({ where: { id } });
+  return project ? toAdminProjectRecord(project) : null;
+}
+
+export async function createProject(input: ProjectInput) {
+  return prisma.project.create({
+    data: {
+      name: input.name,
+      slug: input.slug,
+      summary: input.summary || null,
+      coverUrl: input.coverUrl || null,
+      techStack: JSON.stringify(input.techStack ?? []),
+      status: input.status ?? ProjectStatus.PLANNING,
+      role: input.role || null,
+      highlights: input.highlights ?? [],
+      milestones: input.milestones ?? [],
+      articleSlug: input.articleSlug || null,
+      githubUrl: input.githubUrl || null,
+      projectUrl: input.projectUrl || null,
+      sortOrder: input.sortOrder ?? 0,
+    },
+  });
+}
+
+export async function updateProject(
+  input: Partial<ProjectInput> & { id: bigint },
+) {
+  const { id, ...data } = input;
+  return prisma.project.update({
+    where: { id },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.slug !== undefined && { slug: data.slug }),
+      ...(data.summary !== undefined && { summary: data.summary || null }),
+      ...(data.coverUrl !== undefined && { coverUrl: data.coverUrl || null }),
+      ...(data.techStack !== undefined && {
+        techStack: JSON.stringify(data.techStack),
+      }),
+      ...(data.status !== undefined && { status: data.status }),
+      ...(data.role !== undefined && { role: data.role || null }),
+      ...(data.highlights !== undefined && { highlights: data.highlights }),
+      ...(data.milestones !== undefined && { milestones: data.milestones }),
+      ...(data.articleSlug !== undefined && {
+        articleSlug: data.articleSlug || null,
+      }),
+      ...(data.githubUrl !== undefined && {
+        githubUrl: data.githubUrl || null,
+      }),
+      ...(data.projectUrl !== undefined && {
+        projectUrl: data.projectUrl || null,
+      }),
+      ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
+    },
+  });
+}
+
+export async function deleteProject(id: bigint) {
+  return prisma.project.delete({ where: { id } });
 }

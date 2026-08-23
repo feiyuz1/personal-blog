@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "项目展示",
   description:
-    "Feiyuz 的项目作品集，涵盖全栈开发、工具链和设计系统。每个项目包含技术栈说明、职责描述和阶段总结。",
+    "Feiyuz 的 C++、图形学与 Unreal Engine 项目作品集。每个项目包含媒体展示、技术栈、职责描述和阶段总结。",
 };
 
 export default async function ProjectsRoute() {

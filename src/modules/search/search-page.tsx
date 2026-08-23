@@ -38,12 +38,15 @@ export function SearchPage({
         title="搜索"
         description={`当前共 ${results.length} 篇相关文章${keyword ? `匹配「${keyword}」` : ""}`}
       >
-        <form className="grid gap-4 md:grid-cols-[1fr_auto]" onSubmit={handleSubmit}>
+        <form
+          className="grid gap-4 md:grid-cols-[1fr_auto]"
+          onSubmit={handleSubmit}
+        >
           <input
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600/20"
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 focus:outline-none"
             defaultValue={keyword}
             name="keyword"
-            placeholder="例如：Next.js、TypeScript、性能优化..."
+            placeholder=""
           />
           <button
             className="rounded-full bg-slate-950 px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
@@ -63,8 +66,8 @@ export function SearchPage({
               ))}
             </div>
             <p className="text-center text-xs text-slate-400">
-              搜索功能当前基于本地 mock 数据过滤，
-              后续将接入 PostgreSQL 全文检索或 Meilisearch 引擎。
+              搜索功能当前基于本地 mock 数据过滤， 后续将接入 PostgreSQL
+              全文检索或 Meilisearch 引擎。
             </p>
           </>
         ) : (

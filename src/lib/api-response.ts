@@ -93,3 +93,12 @@ export function tooManyRequests(message = "too many requests") {
   };
   return NextResponse.json(body, { status: 429 });
 }
+
+export function internalServerError(message = "internal server error") {
+  const body: ApiResponse<null> = {
+    code: 500,
+    message,
+    data: null,
+  };
+  return NextResponse.json(body, { status: 500 });
+}

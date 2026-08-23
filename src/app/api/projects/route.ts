@@ -14,6 +14,7 @@ export async function GET() {
         name: p.name,
         slug: p.slug,
         summary: p.summary,
+        coverUrl: p.coverUrl ?? undefined,
         techStack: p.techStack ? JSON.parse(p.techStack) : [],
         status: p.status.toLowerCase(),
         role: p.role ?? "",
@@ -22,7 +23,7 @@ export async function GET() {
         articleSlug: p.articleSlug ?? undefined,
         repositoryUrl: p.githubUrl ?? undefined,
         previewUrl: p.projectUrl ?? undefined,
-      }))
+      })),
     );
   } catch (error) {
     console.error("Projects error:", error);

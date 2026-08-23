@@ -37,7 +37,7 @@ const COLUMNS: Array<{ key: keyof MediaRow["values"]; label: string }> = [
  *
  * 职责：
  *  - 首屏由服务端预取数据传入，避免空白闪烁；
- *  - 上传：选择图片后通过 FormData 提交到 POST /api/admin/media；
+ *  - 上传：选择图片或项目演示视频后通过 FormData 提交到 POST /api/admin/media；
  *  - 删除：调用 DELETE /api/admin/media/[id]，同步清理磁盘与数据库；
  *  - 分页：上一页 / 下一页切换时重新拉取列表。
  */
@@ -57,9 +57,10 @@ export function AdminMediaPage({
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(initialPage);
 
-  // 交互态：上传中、删除中、错误提示
+  // 交互态：上传中、重命名/删除中、错误提示
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +72,11 @@ export function AdminMediaPage({
       const res = await fetch(
         `/api/admin/media?page=${targetPage}&pageSize=${pageSize}`,
       );
-      const json = (await res.json()) as { code: number; data: MediaListResponse; message?: string };
+      const json = (await res.json()) as {
+        code: number;
+        data: MediaListResponse;
+        message?: string;
+      };
       if (json.code === 0 && json.data) {
         setRows(json.data.rows);
         setTotal(json.data.total);
@@ -91,7 +96,10 @@ export function AdminMediaPage({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/admin/media", { method: "POST", body: formData });
+      const res = await fetch("/api/admin/media", {
+        method: "POST",
+        body: formData,
+      });
       const json = (await res.json()) as { code: number; message?: string };
       if (json.code !== 0) {
         setError(json.message ?? "上传失败");
@@ -131,6 +139,44 @@ export function AdminMediaPage({
     }
   }
 
+  async function handleRename(row: MediaRow) {
+    const fileName = prompt(
+      "输入新的展示文件名（不会改变图片访问地址）",
+      row.values.fileName,
+    )?.trim();
+    if (fileName === undefined || fileName === row.values.fileName) return;
+    if (!fileName) {
+      setError("文件名不能为空");
+      return;
+    }
+
+    setError(null);
+    setRenamingId(row.id);
+    try {
+      const res = await fetch(`/api/admin/media/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName }),
+      });
+      const json = (await res.json()) as { code: number; message?: string };
+      if (json.code !== 0) {
+        setError(json.message ?? "重命名失败");
+      } else {
+        setRows((current) =>
+          current.map((item) =>
+            item.id === row.id
+              ? { ...item, values: { ...item.values, fileName } }
+              : item,
+          ),
+        );
+      }
+    } catch {
+      setError("网络错误，重命名失败");
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
   // 分页计算
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const canPrev = page > 1;
@@ -141,7 +187,7 @@ export function AdminMediaPage({
   return (
     <AdminShell
       title="媒体资源管理"
-      description="上传、预览和删除图片等媒体文件。当前文件存储在本地 public/uploads 目录，后续可切换到对象存储。"
+      description="上传、预览和删除图片或项目演示视频。当前文件存储在本地 public/uploads 目录，后续可切换到对象存储。"
     >
       {/* 操作栏：上传 + 统计 */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -149,7 +195,7 @@ export function AdminMediaPage({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -165,7 +211,7 @@ export function AdminMediaPage({
             {uploading ? "上传中..." : "+ 上传文件"}
           </button>
           <span className="text-xs text-slate-400">
-            共 {total} 条记录 · 支持 jpg/png/webp/gif，单文件 ≤ 30MB
+            共 {total} 条记录 · 图片 ≤ 30MB，mp4/webm 视频 ≤ 100MB
           </span>
         </div>
       </div>
@@ -184,7 +230,9 @@ export function AdminMediaPage({
             <table className="min-w-full divide-y divide-black/5 bg-white">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">预览</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">
+                    预览
+                  </th>
                   {COLUMNS.map((column) => (
                     <th
                       key={column.key}
@@ -202,12 +250,27 @@ export function AdminMediaPage({
                 {rows.map((row) => (
                   <tr key={row.id} className="transition hover:bg-slate-50/50">
                     <td className="px-4 py-3">
-                      <a href={row.values.url} target="_blank" rel="noreferrer" title="查看原图">
-                        <img
-                          src={row.values.url}
-                          alt={row.values.fileName}
-                          className="h-12 w-16 rounded-lg border border-slate-100 object-cover"
-                        />
+                      <a
+                        href={row.values.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="查看媒体文件"
+                      >
+                        {row.values.type.startsWith("video/") ? (
+                          <video
+                            src={row.values.url}
+                            className="h-12 w-16 rounded-lg border border-slate-100 object-cover"
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        ) : (
+                          <img
+                            src={row.values.url}
+                            alt={row.values.fileName}
+                            className="h-12 w-16 rounded-lg border border-slate-100 object-cover"
+                          />
+                        )}
                       </a>
                     </td>
                     {COLUMNS.map((column) => (
@@ -230,14 +293,28 @@ export function AdminMediaPage({
                       </td>
                     ))}
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        disabled={deletingId === row.id}
-                        onClick={() => handleDelete(row.id)}
-                        className="rounded-lg border border-red-100 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-                      >
-                        {deletingId === row.id ? "删除中..." : "删除"}
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          disabled={
+                            renamingId === row.id || deletingId === row.id
+                          }
+                          onClick={() => handleRename(row)}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {renamingId === row.id ? "保存中..." : "改名"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            deletingId === row.id || renamingId === row.id
+                          }
+                          onClick={() => handleDelete(row.id)}
+                          className="rounded-lg border border-red-100 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                        >
+                          {deletingId === row.id ? "删除中..." : "删除"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

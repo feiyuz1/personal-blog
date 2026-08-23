@@ -4,7 +4,13 @@ import { PostCard } from "@/components/content/post-card";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
 import { Pill } from "@/components/ui/pill";
-import type { CategorySummary, PostSummary, SiteConfig, TagSummary } from "@/types/content";
+import type {
+  CategorySummary,
+  PostSummary,
+  SiteConfig,
+  SiteStat,
+  TagSummary,
+} from "@/types/content";
 
 export function HomePage({
   config,
@@ -12,12 +18,14 @@ export function HomePage({
   latestPosts,
   categories,
   tags,
+  stats,
 }: {
   config: SiteConfig;
   featuredPosts: PostSummary[];
   latestPosts: PostSummary[];
   categories: CategorySummary[];
   tags: TagSummary[];
+  stats: SiteStat[];
 }) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 md:px-10 md:py-14">
@@ -30,17 +38,15 @@ export function HomePage({
             <p className="text-sm tracking-[0.24em] text-emerald-300/80 uppercase">
               博客数据
             </p>
-            <div className="mt-4 space-y-3">
-              {config.stats.map((stat) => (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {stats.map((stat) => (
                 <div
                   key={stat.label}
                   className="rounded-2xl border border-white/10 bg-white/5 p-4"
                 >
                   <p className="text-2xl font-semibold">{stat.value}</p>
                   <p className="mt-1 text-sm text-slate-200">{stat.label}</p>
-                  {stat.hint ? (
-                    <p className="mt-2 text-xs text-slate-400">{stat.hint}</p>
-                  ) : null}
+                  <p className="mt-2 text-xs text-slate-400">{stat.hint}</p>
                 </div>
               ))}
             </div>
@@ -50,10 +56,7 @@ export function HomePage({
 
       {/* 置顶 / 推荐文章 */}
       <section className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
-        <Panel
-          title="推荐文章"
-          description="精选内容，值得从头读起。"
-        >
+        <Panel title="推荐文章" description="精选内容，值得从头读起。">
           <div className="grid gap-4">
             {featuredPosts.map((post) => (
               <PostCard key={post.slug} post={post} />
@@ -63,29 +66,18 @@ export function HomePage({
 
         <div className="space-y-6">
           {/* 分类快速入口 */}
-          <Panel
-            title="分类浏览"
-            description="按主题分类查看文章"
-          >
+          <Panel title="分类浏览" description="按主题分类查看文章">
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
-                <Link
-                  key={category.slug}
-                  href={`/categories/${category.slug}`}
-                >
-                  <Pill
-                    label={`${category.name} · ${category.count}`}
-                  />
+                <Link key={category.slug} href={`/categories/${category.slug}`}>
+                  <Pill label={`${category.name} · ${category.count}`} />
                 </Link>
               ))}
             </div>
           </Panel>
 
           {/* 热门标签 */}
-          <Panel
-            title="热门标签"
-            description="探索你感兴趣的技术话题"
-          >
+          <Panel title="热门标签" description="探索你感兴趣的技术话题">
             <div className="flex flex-wrap gap-2">
               {tags.slice(0, 8).map((tag) => (
                 <Link key={tag.slug} href={`/tags/${tag.slug}`}>
@@ -100,7 +92,7 @@ export function HomePage({
             <div className="flex flex-wrap gap-3 text-sm">
               <Link
                 href="/blog"
-                className="rounded-full bg-slate-950 px-4 py-2 font-medium text-white transition hover:bg-slate-800"
+                className="rounded-full border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
               >
                 全部文章
               </Link>

@@ -10,7 +10,8 @@ const nextConfig: NextConfig = {
   // 输出 standalone 产物，配合 Dockerfile 多阶段构建，
   // 使最终镜像无需 node_modules 即可运行 server.js，显著减小镜像体积。
   output: "standalone",
-  experimental: { proxyClientMaxBodySize: "30mb" },
+  // 为 100 MB 视频预留 multipart 表单开销；实际文件大小仍由上传接口限制。
+  experimental: { proxyClientMaxBodySize: "105mb" },
 };
 
 export default withMDX(nextConfig);
