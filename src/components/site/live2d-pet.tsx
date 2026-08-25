@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  MASCOT_INTERACTION_EXPRESSIONS,
+  getMascotInteractionVoicesForExpression,
+  type MascotInteractionExpression,
+  type MascotInteractionVoice,
+} from "@/features/mascot/core/interaction-voices";
+
 const MODEL_PATH =
   "/pet/pachan%202.0/pachirisu%20anime%20girl%20-%20top%20half.model3.json";
 const TIPS_PATH = "/live2d/waifu-tips.json";
@@ -10,41 +17,8 @@ const DEFAULT_CUBISM_CORE_URL =
   "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js";
 const PET_POSITION_STORAGE_KEY = "live2d-pet-position";
 const PET_VIEWPORT_MARGIN = 8;
-const EXPRESSION_MESSAGES = {
-  shy: [
-    "突、突然靠这么近……我会害羞的啦。",
-    "脸红才不是因为你，只是这里有点热。",
-    "再摸一下也不是不可以……只能一下哦。",
-    "你这样看着我，我都不知道该把视线放哪里了。",
-  ],
-  happy: [
-    "嘿嘿，见到你我就开心起来啦！",
-    "今天也要带着好心情继续阅读哦。",
-    "被你发现了，我刚刚正在偷偷笑呢。",
-    "一起学到新东西，当然值得开心啦！",
-  ],
-  surprised: [
-    "呀！吓我一跳，你什么时候过来的？",
-    "欸？这里居然还有这种知识！",
-    "突然点我，是有什么新发现吗？",
-    "哇——这个问题听起来很有意思！",
-  ],
-  pout: [
-    "哼，连续点我也不会掉落奖励啦。",
-    "你是不是只顾着看文章，忘记我了？",
-    "我才没有生气……最多只有一点点。",
-    "再不理我，我就把好文章藏起来啦。",
-  ],
-  playful: [
-    "抓到你啦！刚才是不是想偷摸我？",
-    "猜猜我下一次会露出什么表情？",
-    "嘿嘿，今天也来一点小恶作剧吧。",
-    "耳朵动了？一定是你看错啦。",
-  ],
-} as const;
-
 type PetMode = "checking" | "preview" | "live2d";
-type ExpressionName = keyof typeof EXPRESSION_MESSAGES;
+type ExpressionName = MascotInteractionExpression;
 type PetPosition = { left: number; top: number };
 type PetDrag = {
   canvas: HTMLCanvasElement;
@@ -122,7 +96,7 @@ function savePetPosition(position: PetPosition) {
   try {
     localStorage.setItem(PET_POSITION_STORAGE_KEY, JSON.stringify(position));
   } catch {
-    // The pet remains draggable when browser storage is unavailable.
+    // 浏览器存储不可用时仍允许拖动看板娘。
   }
 }
 
@@ -198,8 +172,15 @@ function loadWidgetResource(id: string, url: string, type: "script" | "style") {
 function StaticPetPreview() {
   const [isTalking, setIsTalking] = useState(true);
 
+  const openChat = () => {
+    window.dispatchEvent(new Event("mascot:open-chat"));
+  };
+
   return (
-    <aside className="fixed right-3 bottom-3 z-40 sm:right-6 sm:bottom-5">
+    <aside
+      data-mascot-pet-anchor
+      className="fixed right-3 bottom-3 z-40 sm:right-6 sm:bottom-5"
+    >
       <div
         className={`pointer-events-none absolute right-20 bottom-[82%] w-52 origin-bottom-right rounded-2xl border border-emerald-900/10 bg-[#fffdf8]/95 px-4 py-3 text-sm leading-6 text-slate-700 shadow-[0_14px_36px_rgba(34,58,45,0.16)] backdrop-blur transition sm:right-28 ${
           isTalking
@@ -208,21 +189,38 @@ function StaticPetPreview() {
         }`}
         role="status"
       >
-        Pachan 暂时没有加载成功，刷新页面再叫我一次吧。
+        小羽暂时没有加载成功，刷新页面再叫我一次吧。
         <span className="absolute right-5 -bottom-2 size-4 rotate-45 border-r border-b border-emerald-900/10 bg-[#fffdf8]" />
       </div>
 
-      <button
-        type="button"
-        className="group relative block cursor-pointer rounded-[2rem] outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f4efe5]"
-        aria-label={isTalking ? "收起宠物对话" : "查看 Pachan 状态"}
-        aria-pressed={isTalking}
-        onClick={() => setIsTalking((value) => !value)}
-      >
-        <span className="flex size-20 items-center justify-center rounded-full border border-emerald-900/10 bg-[#fffdf8]/95 text-2xl font-semibold text-emerald-800 shadow-[0_14px_36px_rgba(34,58,45,0.18)] backdrop-blur transition duration-300 group-hover:-translate-y-1 group-hover:rotate-3 sm:size-24">
-          Pa
-        </span>
-      </button>
+      <div className="flex items-end gap-2">
+        <button
+          type="button"
+          className="group relative block cursor-pointer rounded-[2rem] outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f4efe5]"
+          aria-label={isTalking ? "收起宠物对话" : "查看小羽状态"}
+          aria-pressed={isTalking}
+          onClick={() => {
+            setIsTalking((value) => !value);
+          }}
+        >
+          <span className="flex size-20 items-center justify-center rounded-full border border-emerald-900/10 bg-[#fffdf8]/95 text-2xl font-semibold text-emerald-800 shadow-[0_14px_36px_rgba(34,58,45,0.18)] backdrop-blur transition duration-300 group-hover:-translate-y-1 group-hover:rotate-3 sm:size-24">
+            羽
+          </span>
+        </button>
+        <button
+          id="mascot-static-chat"
+          data-mascot-chat-control
+          type="button"
+          onClick={openChat}
+          aria-label="打开与小羽的聊天"
+          aria-controls="mascot-chat-dialog"
+          aria-expanded="false"
+          className="mb-2 inline-flex h-10 items-center gap-1.5 rounded-full border border-emerald-950/10 bg-[#fffdf8]/95 px-3 text-sm font-medium text-emerald-900 shadow-[0_12px_30px_rgba(34,58,45,0.18)] outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-emerald-700"
+        >
+          <span aria-hidden="true">💬</span>
+          <span>聊天</span>
+        </button>
+      </div>
     </aside>
   );
 }
@@ -236,8 +234,34 @@ export function Live2DPet() {
     let expressionMessageTimer: number | null = null;
     let lastExpressionName: ExpressionName | null = null;
     let suppressNextPetClick = false;
+    let injectedChatTool: HTMLButtonElement | null = null;
 
-    const showExpressionMessage = (name: ExpressionName) => {
+    const handleChatToolClick = (event: MouseEvent) => {
+      event.stopPropagation();
+      window.dispatchEvent(new Event("mascot:open-chat"));
+    };
+
+    const ensureChatTool = () => {
+      if (injectedChatTool?.isConnected) return;
+
+      const tools = document.getElementById("waifu-tool");
+      if (!tools) return;
+
+      const button = document.createElement("button");
+      button.id = "waifu-tool-chat";
+      button.type = "button";
+      button.dataset.mascotChatControl = "";
+      button.title = "聊天";
+      button.setAttribute("aria-label", "打开与小羽的聊天");
+      button.setAttribute("aria-controls", "mascot-chat-dialog");
+      button.setAttribute("aria-expanded", "false");
+      button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" /></svg><span>聊天</span>`;
+      button.addEventListener("click", handleChatToolClick);
+      tools.prepend(button);
+      injectedChatTool = button;
+    };
+
+    const showExpressionMessage = (voice: MascotInteractionVoice) => {
       const waifu = document.getElementById("waifu");
       if (!waifu) return;
 
@@ -250,8 +274,7 @@ export function Live2DPet() {
         waifu.prepend(tips);
       }
 
-      const messages = EXPRESSION_MESSAGES[name];
-      tips.textContent = messages[Math.floor(Math.random() * messages.length)];
+      tips.textContent = voice.text;
       tips.classList.add("waifu-expression-tips-active");
       waifu.dataset.expressionActive = "true";
 
@@ -265,12 +288,13 @@ export function Live2DPet() {
       }, 4000);
     };
 
-    const chooseExpression = () => {
-      const names = Object.keys(EXPRESSION_MESSAGES) as ExpressionName[];
+    const chooseInteractionVoice = () => {
+      const names = [...MASCOT_INTERACTION_EXPRESSIONS];
       const candidates = names.filter((name) => name !== lastExpressionName);
       const name = candidates[Math.floor(Math.random() * candidates.length)];
       lastExpressionName = name;
-      return name;
+      const voices = getMascotInteractionVoicesForExpression(name);
+      return voices[Math.floor(Math.random() * voices.length)];
     };
 
     const restorePetPosition = () => {
@@ -286,7 +310,11 @@ export function Live2DPet() {
       applyPetPosition(waifu, position);
     };
 
-    const positionObserver = new MutationObserver(restorePetPosition);
+    const handleWidgetMutation = () => {
+      restorePetPosition();
+      ensureChatTool();
+    };
+    const positionObserver = new MutationObserver(handleWidgetMutation);
     positionObserver.observe(document.body, {
       attributeFilter: ["class"],
       attributes: true,
@@ -294,6 +322,7 @@ export function Live2DPet() {
       subtree: true,
     });
     restorePetPosition();
+    ensureChatTool();
 
     const handlePetClick = (event: MouseEvent) => {
       if (!(event.target instanceof HTMLCanvasElement)) return;
@@ -304,11 +333,19 @@ export function Live2DPet() {
         return;
       }
 
-      const expression = chooseExpression();
-      showExpressionMessage(expression);
+      const interactionVoice = chooseInteractionVoice();
+      showExpressionMessage(interactionVoice);
       window.dispatchEvent(
         new CustomEvent("live2d:expression", {
-          detail: { name: expression },
+          detail: { name: interactionVoice.expression },
+        }),
+      );
+      window.dispatchEvent(
+        new CustomEvent("mascot:interaction-voice", {
+          detail: {
+            id: interactionVoice.id,
+            expression: interactionVoice.expression,
+          },
         }),
       );
     };
@@ -316,6 +353,7 @@ export function Live2DPet() {
     const handlePointerDown = (event: PointerEvent) => {
       if (!(event.target instanceof HTMLCanvasElement)) return;
       if (event.target.id !== "live2d" || event.button !== 0) return;
+      if (document.body.dataset.mascotChatOpen === "true") return;
 
       const waifu = event.target.closest<HTMLElement>("#waifu");
       if (!waifu) return;
@@ -345,6 +383,15 @@ export function Live2DPet() {
 
     const handlePointerMove = (event: PointerEvent) => {
       if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+      if (document.body.dataset.mascotChatOpen === "true") {
+        const cancelledDrag = activeDrag;
+        delete cancelledDrag.waifu.dataset.dragging;
+        if (cancelledDrag.canvas.hasPointerCapture?.(cancelledDrag.pointerId)) {
+          cancelledDrag.canvas.releasePointerCapture(cancelledDrag.pointerId);
+        }
+        activeDrag = null;
+        return;
+      }
 
       const deltaX = event.clientX - activeDrag.startClientX;
       const deltaY = event.clientY - activeDrag.startClientY;
@@ -482,6 +529,10 @@ export function Live2DPet() {
         window.clearTimeout(expressionMessageTimer);
       }
       document.getElementById("waifu-expression-tips")?.remove();
+      if (injectedChatTool) {
+        injectedChatTool.removeEventListener("click", handleChatToolClick);
+        injectedChatTool.remove();
+      }
       const waifu = document.getElementById("waifu");
       if (waifu) delete waifu.dataset.expressionActive;
       positionObserver.disconnect();

@@ -123,12 +123,106 @@ body #waifu[data-dragging="true"] #live2d {
   cursor: grabbing;
 }
 
+body[data-mascot-chat-open="true"] #live2d,
+body[data-mascot-chat-open="true"] #live2d:active {
+  cursor: pointer;
+}
+
 body #waifu-tool svg {
   fill: #64746c;
 }
 
 body #waifu-tool svg:hover {
   fill: #2f6e56;
+}
+
+body #waifu:focus-within #waifu-tool {
+  opacity: 1;
+}
+
+body #waifu-tool #waifu-tool-chat {
+  display: inline-flex;
+  width: auto;
+  height: 32px;
+  align-items: center;
+  gap: 5px;
+  justify-content: center;
+  border: 1px solid rgba(59, 130, 102, 0.2);
+  border-radius: 999px;
+  padding: 0 9px;
+  background: rgba(255, 253, 248, 0.96);
+  box-shadow: 0 8px 22px rgba(34, 58, 45, 0.16);
+  color: #2f6e56;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body #waifu-tool #waifu-tool-chat:hover {
+  background: #fff;
+  color: #235541;
+}
+
+body #waifu-tool #waifu-tool-chat:focus-visible {
+  outline: 2px solid #2f6e56;
+  outline-offset: 2px;
+}
+
+body #waifu-tool #waifu-tool-chat svg,
+body #waifu-tool #waifu-tool-chat svg:hover {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+body[data-mascot-chat-open="true"] #waifu-tips,
+body[data-mascot-chat-open="true"] #waifu-expression-tips {
+  pointer-events: none;
+  opacity: 0;
+}
+
+body #waifu[data-mascot-state="thinking"] #live2d {
+  filter: saturate(0.92);
+}
+
+body #waifu[data-mascot-state="error"] #live2d {
+  filter: saturate(0.8);
+}
+
+@media (min-width: 1024px) {
+  .mascot-chat-panel {
+    right: 23.5rem;
+    bottom: 1.25rem;
+  }
+
+  .mascot-chat-panel[data-mascot-anchored="true"] {
+    top: var(--mascot-chat-top);
+    right: auto;
+    bottom: auto;
+    left: var(--mascot-chat-left);
+  }
+}
+
+@media (max-width: 1023px) {
+  body[data-mascot-chat-open="true"] {
+    overflow: hidden;
+  }
+
+  body[data-mascot-chat-open="true"] #waifu {
+    pointer-events: none;
+    opacity: 0.2;
+    transform: translateY(30%) scale(0.85);
+  }
+
+  body[data-mascot-chat-open="true"] .mascot-chat-trigger,
+  body[data-mascot-chat-open="true"] .mascot-bubble {
+    pointer-events: none;
+    opacity: 0;
+  }
 }
 
 @media (max-width: 640px) {

@@ -8077,10 +8077,14 @@ class gs extends rs {
       },
       h = () => {
         const t = this._modelSetting.getLipSyncParameterCount();
-        for (let e = 0; e < t; ++e)
-          this._lipSyncIds.pushBack(
-            this._modelSetting.getLipSyncParameterId(e),
-          );
+        for (let e = 0; e < t; ++e) {
+          const t = this._modelSetting.getLipSyncParameterId(e);
+          this.hasModelParameter(t) && this._lipSyncIds.pushBack(t);
+        }
+        if (0 == this._lipSyncIds.getSize()) {
+          const t = $.getIdManager().getId(ot.ParamMouthOpenY);
+          this.hasModelParameter(t) && this._lipSyncIds.pushBack(t);
+        }
         ((this._state = hs.SetupLayout), u());
       },
       u = () => {
@@ -8140,6 +8144,54 @@ class gs extends rs {
   reloadRenderer() {
     (this.deleteRenderer(), this.createRenderer(), this.setupTextures());
   }
+  hasModelParameter(t) {
+    if (null == this._model || null == t) return !1;
+    const e = this._model.getParameterIndex(t);
+    return 0 <= e && e < this._model.getParameterCount();
+  }
+  getLipSyncParameterIds() {
+    const t = [];
+    for (let e = 0; e < this._lipSyncIds.getSize(); ++e) {
+      const i = this._lipSyncIds.at(e),
+        s = i && i.getString();
+      s && "string" == typeof s.s && t.push(s.s);
+    }
+    return t;
+  }
+  hasExpression(t) {
+    return "string" == typeof t && null != this._expressions.getValue(t);
+  }
+  setExternalLipSync(t) {
+    ((this._externalLipSyncValue = Number.isFinite(t)
+      ? Math.max(0, Math.min(1, t))
+      : 0),
+      (this._externalLipSyncUpdatedAt = performance.now()),
+      (this._externalLipSyncActive = !0));
+  }
+  setExternalLipSyncActive(t) {
+    t
+      ? ((this._externalLipSyncActive = !0),
+        (this._externalLipSyncUpdatedAt = performance.now()))
+      : this.stopExternalLipSync();
+  }
+  stopExternalLipSync() {
+    ((this._externalLipSyncValue = 0),
+      (this._externalLipSyncUpdatedAt = 0),
+      (this._externalLipSyncActive = !1));
+    if (null == this._model) return;
+    for (let t = 0; t < this._lipSyncIds.getSize(); ++t)
+      this._model.setParameterValueById(this._lipSyncIds.at(t), 0);
+  }
+  updateExternalLipSync() {
+    if (!this._externalLipSyncActive) return;
+    if (performance.now() - this._externalLipSyncUpdatedAt > 250)
+      return void this.stopExternalLipSync();
+    for (let t = 0; t < this._lipSyncIds.getSize(); ++t)
+      this._model.setParameterValueById(
+        this._lipSyncIds.at(t),
+        this._externalLipSyncValue,
+      );
+  }
   update() {
     if (this._state != hs.CompleteSetup) return;
     const t = at.getDeltaTime();
@@ -8181,6 +8233,7 @@ class gs extends rs {
         this._model.addParameterValueById(this._lipSyncIds.at(t), e, 0.8);
     }
     (null != this._pose && this._pose.updateParameters(this._model, t),
+      this.updateExternalLipSync(),
       this._model.update());
   }
   startMotion(t, e, i, s, r) {
@@ -8381,6 +8434,9 @@ class gs extends rs {
       (this._motionCount = 0),
       (this._allMotionCount = 0),
       (this._wavFileHandler = new ns()),
+      (this._externalLipSyncValue = 0),
+      (this._externalLipSyncUpdatedAt = 0),
+      (this._externalLipSyncActive = !1),
       (this._consistency = !1));
   }
 }
@@ -9367,6 +9423,7 @@ class vs extends Cs {
 }
 class bs extends Ms {
   run() {
+    this.installMascotBridge();
     const t = () => {
       at.updateTime();
       for (let t = 0; t < this._subdelegates.getSize(); t++)
@@ -9381,10 +9438,66 @@ class bs extends Ms {
       (this._drawFrameId = null));
   }
   release() {
-    (this.stop(),
+    (this.releaseMascotBridge(),
+      this.stop(),
       this.releaseEventListener(),
       this._subdelegates.clear(),
       (this._cubismOption = null));
+  }
+  getMascotModel() {
+    const t = this._subdelegates.at(0),
+      e = t && t.getLive2DManager();
+    return (e && e._models.at(0)) || null;
+  }
+  installMascotBridge() {
+    const t = {
+      setMouthOpen: (t) => {
+        const e = this.getMascotModel();
+        e && e.setExternalLipSync(Number(t));
+      },
+      setLipSyncActive: (t) => {
+        const e = this.getMascotModel();
+        e && e.setExternalLipSyncActive(Boolean(t));
+      },
+      getLipSyncParameterIds: () => {
+        const t = this.getMascotModel();
+        return t ? t.getLipSyncParameterIds() : [];
+      },
+      triggerExpression: (t) => {
+        const e = this.getMascotModel();
+        e && e.hasExpression(t) && e.setExpression(t);
+      },
+      triggerMotion: (t) => {
+        const e = this.getMascotModel();
+        e &&
+          "string" == typeof t &&
+          e._modelSetting.getMotionCount(t) > 0 &&
+          e.startRandomMotion(t, 1);
+      },
+      setState: (t) => {
+        if (!["idle", "thinking", "speaking", "error"].includes(t)) return;
+        const e = document.getElementById("waifu");
+        e && (e.dataset.mascotState = t);
+        const i = this.getMascotModel(),
+          s = {
+            idle: "neutral",
+            thinking: "shy",
+            speaking: "happy",
+            error: "pout",
+          }[t];
+        i && i.hasExpression(s) && i.setExpression(s);
+      },
+    };
+    ((this.mascotBridge = t),
+      (window.__MASCOT_LIVE2D_RUNTIME__ = t),
+      window.dispatchEvent(new Event("mascot:live2d-ready")));
+  }
+  releaseMascotBridge() {
+    const t = this.getMascotModel();
+    (t && t.stopExternalLipSync(),
+      window.__MASCOT_LIVE2D_RUNTIME__ === this.mascotBridge &&
+        delete window.__MASCOT_LIVE2D_RUNTIME__,
+      (this.mascotBridge = null));
   }
   transformOffset(t) {
     const e = this._subdelegates.at(0),

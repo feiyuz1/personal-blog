@@ -29,6 +29,10 @@
       "text": ["要给我拍张照片吗？记得选好角度哦。"]
     },
     {
+      "selector": "#waifu-tool-chat",
+      "text": ["想聊点什么？点击这里打开聊天框吧。"]
+    },
+    {
       "selector": "#waifu-tool-info",
       "text": ["这里可以查看让我动起来的开源项目。"]
     },
@@ -84,7 +88,7 @@
       "paths": [
         "/pet/pachan%202.0/pachirisu%20anime%20girl%20-%20top%20half.model3.json"
       ],
-      "message": "Pachan 来啦，请多指教！"
+      "message": "小羽来啦，请多指教！"
     }
   ]
 }
