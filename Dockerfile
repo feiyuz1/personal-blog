@@ -4,7 +4,7 @@
 # =============================================================================
 
 # ---------- 阶段 1：安装依赖 ----------
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 # 仅拷贝依赖描述与 prisma schema，利用缓存层
@@ -16,7 +16,7 @@ RUN npm ci --omit=dev=false || npm install
 RUN npx prisma generate
 
 # ---------- 阶段 2：构建应用 ----------
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # 关闭 Next 遥测，避免构建噪音
@@ -28,7 +28,7 @@ COPY . .
 RUN npm run build
 
 # ---------- 阶段 3：运行时镜像 ----------
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
