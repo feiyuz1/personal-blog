@@ -1,5 +1,7 @@
 # Live2D 宠物集成
 
+AI 对话、TTS、运行时窄桥与嘴型同步说明见 [`mascot-ai.md`](mascot-ai.md)。
+
 网站通过 `live2d-widgets` 加载 Live2D 模型。当前使用的模型入口是：
 
 ```text

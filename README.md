@@ -9,6 +9,8 @@
 - Prisma 6 + PostgreSQL 16
 - Tailwind CSS 4
 - MDX
+- Vercel AI SDK 7 + OpenAI-compatible Provider（Live2D AI 看板娘）
+- Zustand + Web Audio（聊天状态、TTS 与嘴型同步）
 - jose（JWT 会话）+ bcryptjs（密码哈希）
 - 代码高亮：highlight.js（CDN 按需加载）
 
@@ -22,6 +24,8 @@ npm run prisma:push
 npm run prisma:seed
 npm run dev
 ```
+
+> 需要 Node.js 22+。AI/语音为可配置功能；填写 `.env.example` 中的 `AI_API_KEY`、`AI_CHAT_MODEL`、`MASCOT_TTS_VOICE` 后可完整体验，未配置时博客和 Live2D 仍可正常运行。
 
 启动后访问 `http://localhost:3000`。后台登录地址 `http://localhost:3000/admin/login`，默认账号：
 
@@ -63,6 +67,7 @@ npm run build
 - `src/services`：数据访问与业务边界（content-service / admin-service）
 - `src/lib/auth`：会话与 JWT（token.ts / session.ts）
 - `src/lib`：基础能力封装（prisma、api-response、rate-limit、request-origin）
+- `src/features/mascot`：独立的 AI 看板娘产品模块（UI、AI、TTS、LipSync、限额、Memory/RAG 接口）
 - `src/middleware.ts`：后台路径乐观鉴权重定向
 - `src/data/mock-content.ts`：本地示例内容（站点配置/关于/技术栈/时间线/联系方式）
 - `src/types`：类型定义
@@ -86,6 +91,7 @@ npm run build
 ### 前台
 
 - 首页、文章列表与详情、分类、标签、归档、搜索、关于我、联系我、项目展示
+- Live2D 看板娘小羽：流式 AI 对话、页面上下文、TTS、Web Audio 嘴型同步、响应式聊天面板
 - 文章详情：目录导航、上下篇、代码块语法高亮（highlight.js）
 - 文章详情评论区：展示已通过评论（支持嵌套回复）、提交评论（审核制）
 
@@ -118,7 +124,7 @@ docker compose -f compose.prod.yml --env-file .env.prod up -d --build
 DATABASE_URL=postgresql://user:pass@host:5432/db npx prisma migrate deploy
 ```
 
-详见 `Dockerfile`、`compose.prod.yml`、`nginx/blog.conf`。CI 配置见 `.github/workflows/ci.yml`。
+详见 `Dockerfile`、`compose.prod.yml`、`nginx/blog.conf`。AI 流式部署、Provider、限额和 LipSync 说明见 [`docs/mascot-ai.md`](docs/mascot-ai.md)，CI 配置见 `.github/workflows/ci.yml`。
 
 ## 常见问题
 
@@ -126,3 +132,5 @@ DATABASE_URL=postgresql://user:pass@host:5432/db npx prisma migrate deploy
 - 修改 `prisma/schema.prisma` 后需重新执行 `npm run prisma:push` 和 `npm run prisma:generate`。
 - 登录报 "SESSION_SECRET 未配置"：在 `.env` 中配置 `SESSION_SECRET`。
 - 写接口（上传/评论/审核等）报 "来源校验失败"：在 `.env` 中配置 `APP_ORIGIN` 与站点地址一致。
+- 小羽显示“AI 服务尚未配置”：填写服务端 `AI_API_KEY` 与 `AI_CHAT_MODEL`，重启 Next.js。
+- AI 文字不是逐步出现：确认反向代理对 `/api/mascot/chat` 设置了 `proxy_buffering off`。
