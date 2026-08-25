@@ -124,7 +124,7 @@ docker compose -f compose.prod.yml --env-file .env.prod up -d --build
 DATABASE_URL=postgresql://user:pass@host:5432/db npx prisma migrate deploy
 ```
 
-详见 `Dockerfile`、`compose.prod.yml`、`nginx/blog.conf`。AI 流式部署、Provider、限额和 LipSync 说明见 [`docs/mascot-ai.md`](docs/mascot-ai.md)，CI 配置见 `.github/workflows/ci.yml`。
+详见 `Dockerfile`、`compose.prod.yml`、`nginx/blog.conf`。CI 配置见 `.github/workflows/ci.yml`。
 
 ## 常见问题
 
