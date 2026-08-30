@@ -2,28 +2,29 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
+import { voiceErrorMessage } from "../audio/errors";
 import type { MascotAudioPlayer } from "../audio/player";
+import {
+  MASCOT_CHAT_STREAM_PROTOCOL,
+  readMascotChatStream,
+} from "../core/chat-stream";
+import { sanitizeGeneratedText } from "../core/text-quality";
 import type { MascotFeatureConfig, MascotHostContext } from "../core/types";
 import { useMascotStore } from "../store/mascot-store";
 import { MascotInput } from "./MascotInput";
 import { MascotMessage, type DisplayMascotMessage } from "./MascotMessage";
 import { MascotSuggestions } from "./MascotSuggestions";
 import { MemoryButton } from "./MemoryButton";
-import { VoiceButton } from "./VoiceButton";
 
 const FRIENDLY_AI_ERROR = "唔，好像没接上信号……稍后再找我试试吧。";
-const STREAM_IDLE_TIMEOUT_MS = 20_000;
-const STREAM_TIMEOUT_MESSAGE = "等了有点久，连接已经自动断开，请再试一次。";
+const FIRST_RESPONSE_TIMEOUT_MS = 65_000;
+const STREAM_IDLE_TIMEOUT_MS = 25_000;
+const FIRST_RESPONSE_TIMEOUT_MESSAGE =
+  "AI 服务等待时间过长，连接已经自动断开，请再试一次。";
+const STREAM_IDLE_TIMEOUT_MESSAGE =
+  "回复传输中断时间过长，连接已经自动断开，请再试一次。";
 
-class MascotResponseError extends Error {}
-
-function voiceErrorMessage(error: unknown) {
-  const notice =
-    error instanceof Error ? error.message : "语音暂时不可用，请稍后再试。";
-  return notice.includes("文字回答不受影响")
-    ? notice
-    : `${notice} 文字回答不受影响。`;
-}
+class MascotChatError extends Error {}
 
 function messageId() {
   return crypto.randomUUID();
@@ -84,7 +85,6 @@ export function MascotChat({
     },
   ]);
   const [memoryNoticeOpen, setMemoryNoticeOpen] = useState(false);
-  const [voiceNotice, setVoiceNotice] = useState<string>();
   const abortController = useRef<AbortController | null>(null);
   const activeAssistantId = useRef<string | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
@@ -93,9 +93,10 @@ export function MascotChat({
   const chatPhase = useMascotStore((state) => state.chatPhase);
   const voiceEnabled = useMascotStore((state) => state.voiceEnabled);
   const voicePhase = useMascotStore((state) => state.voicePhase);
+  const voiceNotice = useMascotStore((state) => state.voiceNotice);
   const conversationId = useMascotStore((state) => state.currentConversationId);
   const setChatPhase = useMascotStore((state) => state.setChatPhase);
-  const setVoiceEnabled = useMascotStore((state) => state.setVoiceEnabled);
+  const setVoiceNotice = useMascotStore((state) => state.setVoiceNotice);
   const setVoicePhase = useMascotStore((state) => state.setVoicePhase);
   const setConversationId = useMascotStore((state) => state.setConversationId);
   const generating = chatPhase === "thinking" || chatPhase === "streaming";
@@ -190,8 +191,10 @@ export function MascotChat({
     const activeConversationId = conversationId ?? crypto.randomUUID();
     if (!conversationId) setConversationId(activeConversationId);
 
+    let rawText = "";
     let completeText = "";
     let streamTimedOut = false;
+    let streamTimeoutMessage = FIRST_RESPONSE_TIMEOUT_MESSAGE;
     let streamTimeoutId: number | undefined;
     const clearStreamTimeout = () => {
       if (streamTimeoutId !== undefined) {
@@ -199,16 +202,17 @@ export function MascotChat({
         streamTimeoutId = undefined;
       }
     };
-    const armStreamTimeout = () => {
+    const armStreamTimeout = (duration: number, message: string) => {
       clearStreamTimeout();
+      streamTimeoutMessage = message;
       streamTimeoutId = window.setTimeout(() => {
         streamTimedOut = true;
         controller.abort();
-      }, STREAM_IDLE_TIMEOUT_MS);
+      }, duration);
     };
     const isCurrentRequest = () => abortController.current === controller;
 
-    armStreamTimeout();
+    armStreamTimeout(FIRST_RESPONSE_TIMEOUT_MS, FIRST_RESPONSE_TIMEOUT_MESSAGE);
     try {
       const response = await fetch("/api/mascot/chat", {
         method: "POST",
@@ -222,7 +226,7 @@ export function MascotChat({
         signal: controller.signal,
       });
       if (!response.ok) {
-        throw new MascotResponseError(await responseErrorMessage(response));
+        throw new MascotChatError(await responseErrorMessage(response));
       }
       if (!response.body) throw new Error(FRIENDLY_AI_ERROR);
 
@@ -231,24 +235,45 @@ export function MascotChat({
       );
       if (responseConversationId) setConversationId(responseConversationId);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
       let receivedFirstChunk = false;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        armStreamTimeout();
-        const chunk = decoder.decode(value, { stream: true });
-        if (!chunk) continue;
-        completeText += chunk;
+      const appendText = (chunk: string) => {
+        if (!chunk) return;
+        rawText += chunk;
+        // 每次都基于完整累计文本重算，兼容孤立 D 恰好跨网络分块的情况。
+        completeText = sanitizeGeneratedText(rawText);
         if (!receivedFirstChunk && isCurrentRequest()) {
           receivedFirstChunk = true;
           setChatPhase("streaming");
         }
         replaceAssistant(assistantId, completeText);
+      };
+
+      if (
+        response.headers.get("x-mascot-stream-protocol") ===
+        MASCOT_CHAT_STREAM_PROTOCOL
+      ) {
+        for await (const event of readMascotChatStream(response.body)) {
+          armStreamTimeout(STREAM_IDLE_TIMEOUT_MS, STREAM_IDLE_TIMEOUT_MESSAGE);
+          if (event.type === "delta") {
+            appendText(event.text);
+          } else if (event.type === "error") {
+            throw new MascotChatError(event.message);
+          }
+        }
+      } else {
+        // 兼容尚未滚动更新完成的旧服务端纯文本响应。
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          armStreamTimeout(STREAM_IDLE_TIMEOUT_MS, STREAM_IDLE_TIMEOUT_MESSAGE);
+          appendText(decoder.decode(value, { stream: true }));
+        }
+        appendText(decoder.decode());
       }
       clearStreamTimeout();
-      completeText += decoder.decode();
+      completeText = sanitizeGeneratedText(rawText);
       if (!completeText.trim()) throw new Error(FRIENDLY_AI_ERROR);
       replaceAssistant(assistantId, completeText);
       if (isCurrentRequest()) setChatPhase("idle");
@@ -265,8 +290,8 @@ export function MascotChat({
         replaceAssistant(
           assistantId,
           completeText.trim()
-            ? `${completeText}\n\n（${STREAM_TIMEOUT_MESSAGE}）`
-            : STREAM_TIMEOUT_MESSAGE,
+            ? `${completeText}\n\n（${streamTimeoutMessage}）`
+            : streamTimeoutMessage,
           true,
         );
         if (isCurrentRequest()) setChatPhase("error");
@@ -278,10 +303,14 @@ export function MascotChat({
         return;
       }
       const message =
-        error instanceof MascotResponseError
-          ? error.message
-          : FRIENDLY_AI_ERROR;
-      replaceAssistant(assistantId, message || FRIENDLY_AI_ERROR, true);
+        error instanceof MascotChatError ? error.message : FRIENDLY_AI_ERROR;
+      replaceAssistant(
+        assistantId,
+        completeText.trim()
+          ? `${completeText}\n\n（${message || FRIENDLY_AI_ERROR}）`
+          : message || FRIENDLY_AI_ERROR,
+        true,
+      );
       if (isCurrentRequest()) setChatPhase("error");
     } finally {
       clearStreamTimeout();
@@ -298,43 +327,8 @@ export function MascotChat({
     abortController.current = null;
     activeAssistantId.current = null;
     if (assistantId) removeAssistantIfEmpty(assistantId);
+    audioPlayer.stop();
     setChatPhase("idle");
-  };
-
-  const toggleVoice = () => {
-    if (!voiceAvailable) return;
-    const next = !voiceEnabled;
-    setVoiceNotice(undefined);
-    setVoiceEnabled(next);
-    if (!next) {
-      audioPlayer.stop();
-    } else {
-      const latestAssistantMessage = [...messages]
-        .reverse()
-        .find(
-          (message) =>
-            message.role === "assistant" &&
-            message.id !== "mascot-welcome" &&
-            message.content.trim() &&
-            !message.error,
-        );
-      void (async () => {
-        try {
-          await audioPlayer.unlock();
-          void audioPlayer.preloadInteractionVoices();
-          if (!generating && latestAssistantMessage) {
-            await audioPlayer.speak(latestAssistantMessage.content);
-          }
-        } catch (error) {
-          setVoiceNotice(voiceErrorMessage(error));
-        }
-      })();
-    }
-    try {
-      localStorage.setItem("mascot.voiceEnabled", String(next));
-    } catch {
-      // 浏览器存储不可用时，本次访问仍可继续使用语音。
-    }
   };
 
   const phaseLabel =
@@ -411,13 +405,6 @@ export function MascotChat({
             enabled={features.memoryEnabled}
             active={memoryNoticeOpen}
             onToggle={() => setMemoryNoticeOpen((current) => !current)}
-          />
-          <VoiceButton
-            mascotName={features.mascotName}
-            available={voiceAvailable}
-            enabled={voiceEnabled}
-            phase={voicePhase}
-            onToggle={toggleVoice}
           />
           <button
             ref={closeButton}

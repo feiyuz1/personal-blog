@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 
 import { MascotAudioPlayer } from "../src/features/mascot/audio/player";
-import { mascotInteractionVoiceUrl } from "../src/features/mascot/core/interaction-voices";
+import {
+  MASCOT_INTERACTION_VOICE_IDS,
+  mascotInteractionVoiceUrl,
+} from "../src/features/mascot/core/interaction-voices";
 
 class FakeAudio {
   static readonly instances: FakeAudio[] = [];
@@ -81,24 +84,60 @@ class FakeAudioContext {
   }
 }
 
+class FakeMediaSource extends EventTarget {
+  static readonly instances: FakeMediaSource[] = [];
+  static isTypeSupported() {
+    return true;
+  }
+
+  readyState: ReadyState = "closed";
+
+  constructor() {
+    super();
+    FakeMediaSource.instances.push(this);
+  }
+
+  addSourceBuffer(): never {
+    throw new Error("取消测试不应执行到 addSourceBuffer");
+  }
+}
+
 Object.defineProperties(globalThis, {
   Audio: { configurable: true, value: FakeAudio },
   AudioContext: { configurable: true, value: FakeAudioContext },
   requestAnimationFrame: { configurable: true, value: () => 1 },
   cancelAnimationFrame: { configurable: true, value: () => undefined },
+  MediaSource: { configurable: true, value: FakeMediaSource },
+});
+Object.defineProperties(URL, {
+  createObjectURL: { configurable: true, value: () => "blob:mascot-test" },
+  revokeObjectURL: { configurable: true, value: () => undefined },
 });
 
+async function waitForMediaSource() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (FakeMediaSource.instances.length > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  throw new Error("动态语音没有进入 MediaSource 播放路径");
+}
+
 async function checkPlayer() {
-  const expressions: string[] = [];
+  const originalFetch = globalThis.fetch;
+  const cachedUrls: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/interaction-voice/")) cachedUrls.push(url);
+    return new Response(new Uint8Array([1]), {
+      headers: { "Content-Type": "audio/mpeg" },
+    });
+  };
   const player = new MascotAudioPlayer({
     adapter: {
       dispose() {},
       setMouthOpen() {},
       setLipSyncActive() {},
       setState() {},
-      triggerExpression(expression) {
-        expressions.push(expression);
-      },
       getLipSyncParameterIds() {
         return [];
       },
@@ -107,30 +146,49 @@ async function checkPlayer() {
     onPhaseChange() {},
   });
 
-  const firstPlayback = player.speakInteraction("happy-1");
-  assert.equal(FakeAudio.instances.length, 1);
-  assert.equal(FakeAudio.instances[0]?.playCalls, 1);
-  assert.equal(
-    FakeAudio.instances[0]?.src,
-    mascotInteractionVoiceUrl("happy-1"),
-  );
+  try {
+    const cancelledPlayback = player.speak("测试流式语音取消。");
+    await waitForMediaSource();
+    player.stop();
+    await Promise.race([
+      cancelledPlayback,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("流式取消后播放器仍在等待")), 500),
+      ),
+    ]);
 
-  const secondPlayback = player.speakInteraction("pout-2");
-  assert.equal(FakeAudio.instances.length, 2);
-  assert.equal(FakeAudio.instances[0]?.paused, true);
-  assert.equal(FakeAudio.instances[1]?.playCalls, 1);
-  assert.equal(
-    FakeAudio.instances[1]?.src,
-    mascotInteractionVoiceUrl("pout-2"),
-  );
+    await player.preloadInteractionVoices();
+    await player.preloadInteractionVoices();
+    assert.equal(cachedUrls.length, MASCOT_INTERACTION_VOICE_IDS.length);
+    assert.equal(new Set(cachedUrls).size, MASCOT_INTERACTION_VOICE_IDS.length);
 
-  FakeAudio.instances[1]?.onended?.();
-  await Promise.all([firstPlayback, secondPlayback]);
-  assert.deepEqual(expressions, ["happy", "pout"]);
+    const interactionStart = FakeAudio.instances.length;
+    const firstPlayback = player.speakInteraction("happy-1");
+    assert.equal(FakeAudio.instances.length, interactionStart + 1);
+    assert.equal(FakeAudio.instances[interactionStart]?.playCalls, 1);
+    assert.equal(
+      FakeAudio.instances[interactionStart]?.src,
+      mascotInteractionVoiceUrl("happy-1"),
+    );
 
-  player.dispose();
+    const secondPlayback = player.speakInteraction("pout-2");
+    assert.equal(FakeAudio.instances.length, interactionStart + 2);
+    assert.equal(FakeAudio.instances[interactionStart]?.paused, true);
+    assert.equal(FakeAudio.instances[interactionStart + 1]?.playCalls, 1);
+    assert.equal(
+      FakeAudio.instances[interactionStart + 1]?.src,
+      mascotInteractionVoiceUrl("pout-2"),
+    );
+
+    FakeAudio.instances[interactionStart + 1]?.onended?.();
+    await Promise.all([firstPlayback, secondPlayback]);
+  } finally {
+    player.dispose();
+    globalThis.fetch = originalFetch;
+  }
+
   console.log(
-    "互动语音播放器回归通过：原生点击栈内播放，连续点击最后一次优先。",
+    "语音播放器回归通过：流式首播可取消，缓存不重复请求，连续点击最后一次优先。",
   );
 }
 

@@ -27,19 +27,31 @@ export function VoiceButton({
 
   return (
     <button
+      id="waifu-tool-voice"
       type="button"
       disabled={!available}
       onClick={onToggle}
-      className={`grid size-9 place-items-center rounded-full transition outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 ${
-        phase === "error"
-          ? "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-          : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-300 dark:hover:bg-slate-800"
-      }`}
+      data-voice-phase={phase}
+      className={phase === "error" ? "mascot-tool-error" : undefined}
       aria-label={stateLabel}
       aria-pressed={enabled}
       title={stateLabel}
     >
-      <span aria-hidden="true">{enabled ? "🔊" : "🔇"}</span>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden="true"
+      >
+        <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+        {enabled ? (
+          <path d="M15 9a4 4 0 0 1 0 6M17.5 6.5a8 8 0 0 1 0 11" />
+        ) : (
+          <path d="m16 9 5 6m0-6-5 6" />
+        )}
+      </svg>
+      <span>语音</span>
     </button>
   );
 }

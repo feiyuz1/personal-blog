@@ -140,7 +140,9 @@ body #waifu:focus-within #waifu-tool {
   opacity: 1;
 }
 
-body #waifu-tool #waifu-tool-chat {
+body #waifu-tool #waifu-tool-chat,
+body #waifu-tool #waifu-tool-voice,
+body [data-mascot-voice-host] #waifu-tool-voice {
   display: inline-flex;
   width: auto;
   height: 32px;
@@ -160,23 +162,48 @@ body #waifu-tool #waifu-tool-chat {
   white-space: nowrap;
 }
 
-body #waifu-tool #waifu-tool-chat:hover {
+body #waifu-tool #waifu-tool-chat:hover,
+body #waifu-tool #waifu-tool-voice:hover,
+body [data-mascot-voice-host] #waifu-tool-voice:hover {
   background: #fff;
   color: #235541;
 }
 
-body #waifu-tool #waifu-tool-chat:focus-visible {
+body #waifu-tool #waifu-tool-chat:focus-visible,
+body #waifu-tool #waifu-tool-voice:focus-visible,
+body [data-mascot-voice-host] #waifu-tool-voice:focus-visible {
   outline: 2px solid #2f6e56;
   outline-offset: 2px;
 }
 
 body #waifu-tool #waifu-tool-chat svg,
-body #waifu-tool #waifu-tool-chat svg:hover {
+body #waifu-tool #waifu-tool-chat svg:hover,
+body #waifu-tool #waifu-tool-voice svg,
+body #waifu-tool #waifu-tool-voice svg:hover,
+body [data-mascot-voice-host] #waifu-tool-voice svg {
   width: 15px;
   height: 15px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
+}
+
+body #waifu-tool #waifu-tool-voice:disabled,
+body [data-mascot-voice-host] #waifu-tool-voice:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+body #waifu-tool #waifu-tool-voice[data-voice-phase="loading"],
+body #waifu-tool #waifu-tool-voice[data-voice-phase="speaking"] {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(236, 253, 245, 0.98);
+}
+
+body #waifu-tool #waifu-tool-voice.mascot-tool-error,
+body [data-mascot-voice-host] #waifu-tool-voice.mascot-tool-error {
+  border-color: rgba(225, 29, 72, 0.28);
+  color: #be123c;
 }
 
 body[data-mascot-chat-open="true"] #waifu-tips,
@@ -239,6 +266,12 @@ body #waifu[data-mascot-state="error"] #live2d {
   body #waifu-expression-tips {
     right: 0.5rem;
     width: 210px;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  body #waifu-tool {
+    opacity: 1;
   }
 }
 

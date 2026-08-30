@@ -1,21 +1,21 @@
 import { create } from "zustand";
 
-import type { ChatPhase, MascotPageContext, VoicePhase } from "../core/types";
+import type { ChatPhase, VoicePhase } from "../core/types";
 
 type MascotStore = {
   chatOpen: boolean;
   chatPhase: ChatPhase;
   voiceEnabled: boolean;
   voicePhase: VoicePhase;
+  voiceNotice?: string;
   currentConversationId?: string;
-  currentPage?: MascotPageContext;
   openChat: () => void;
   closeChat: () => void;
   setChatPhase: (phase: ChatPhase) => void;
   setVoiceEnabled: (enabled: boolean) => void;
   setVoicePhase: (phase: VoicePhase) => void;
+  setVoiceNotice: (notice?: string) => void;
   setConversationId: (id: string) => void;
-  setCurrentPage: (page?: MascotPageContext) => void;
 };
 
 export const useMascotStore = create<MascotStore>((set) => ({
@@ -32,6 +32,6 @@ export const useMascotStore = create<MascotStore>((set) => ({
       voicePhase: voiceEnabled ? "idle" : "muted",
     }),
   setVoicePhase: (voicePhase) => set({ voicePhase }),
+  setVoiceNotice: (voiceNotice) => set({ voiceNotice }),
   setConversationId: (currentConversationId) => set({ currentConversationId }),
-  setCurrentPage: (currentPage) => set({ currentPage }),
 }));

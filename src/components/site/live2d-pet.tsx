@@ -220,6 +220,7 @@ function StaticPetPreview() {
           <span aria-hidden="true">💬</span>
           <span>聊天</span>
         </button>
+        <span data-mascot-voice-host className="mb-2 inline-flex" />
       </div>
     </aside>
   );
@@ -235,6 +236,7 @@ export function Live2DPet() {
     let lastExpressionName: ExpressionName | null = null;
     let suppressNextPetClick = false;
     let injectedChatTool: HTMLButtonElement | null = null;
+    let injectedVoiceHost: HTMLSpanElement | null = null;
 
     const handleChatToolClick = (event: MouseEvent) => {
       event.stopPropagation();
@@ -242,23 +244,30 @@ export function Live2DPet() {
     };
 
     const ensureChatTool = () => {
-      if (injectedChatTool?.isConnected) return;
-
       const tools = document.getElementById("waifu-tool");
       if (!tools) return;
 
-      const button = document.createElement("button");
-      button.id = "waifu-tool-chat";
-      button.type = "button";
-      button.dataset.mascotChatControl = "";
-      button.title = "聊天";
-      button.setAttribute("aria-label", "打开与小羽的聊天");
-      button.setAttribute("aria-controls", "mascot-chat-dialog");
-      button.setAttribute("aria-expanded", "false");
-      button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" /></svg><span>聊天</span>`;
-      button.addEventListener("click", handleChatToolClick);
-      tools.prepend(button);
-      injectedChatTool = button;
+      if (!injectedChatTool?.isConnected) {
+        const button = document.createElement("button");
+        button.id = "waifu-tool-chat";
+        button.type = "button";
+        button.dataset.mascotChatControl = "";
+        button.title = "聊天";
+        button.setAttribute("aria-label", "打开与小羽的聊天");
+        button.setAttribute("aria-controls", "mascot-chat-dialog");
+        button.setAttribute("aria-expanded", "false");
+        button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" /></svg><span>聊天</span>`;
+        button.addEventListener("click", handleChatToolClick);
+        tools.prepend(button);
+        injectedChatTool = button;
+      }
+
+      if (!injectedVoiceHost?.isConnected) {
+        const voiceHost = document.createElement("span");
+        voiceHost.dataset.mascotVoiceHost = "";
+        injectedChatTool?.insertAdjacentElement("afterend", voiceHost);
+        injectedVoiceHost = voiceHost;
+      }
     };
 
     const showExpressionMessage = (voice: MascotInteractionVoice) => {
@@ -336,16 +345,8 @@ export function Live2DPet() {
       const interactionVoice = chooseInteractionVoice();
       showExpressionMessage(interactionVoice);
       window.dispatchEvent(
-        new CustomEvent("live2d:expression", {
-          detail: { name: interactionVoice.expression },
-        }),
-      );
-      window.dispatchEvent(
         new CustomEvent("mascot:interaction-voice", {
-          detail: {
-            id: interactionVoice.id,
-            expression: interactionVoice.expression,
-          },
+          detail: { id: interactionVoice.id },
         }),
       );
     };
@@ -533,6 +534,7 @@ export function Live2DPet() {
         injectedChatTool.removeEventListener("click", handleChatToolClick);
         injectedChatTool.remove();
       }
+      injectedVoiceHost?.remove();
       const waifu = document.getElementById("waifu");
       if (waifu) delete waifu.dataset.expressionActive;
       positionObserver.disconnect();

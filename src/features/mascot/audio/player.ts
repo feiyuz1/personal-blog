@@ -1,7 +1,6 @@
 import type { VoicePhase } from "../core/types";
 import {
   MASCOT_INTERACTION_VOICE_IDS,
-  getMascotInteractionVoice,
   mascotInteractionVoiceUrl,
   type MascotInteractionVoiceId,
 } from "../core/interaction-voices";
@@ -11,6 +10,8 @@ type AudioPlayerOptions = {
   adapter: MascotLive2DAdapter;
   maxSegmentChars: number;
   onPhaseChange: (phase: VoicePhase) => void;
+  /** 音频结束后保留表情与口型的缓冲时长（毫秒），让收尾更自然；默认 0 即不缓冲。 */
+  tailHoldMs?: number;
 };
 
 class MascotAudioPlayerError extends Error {}
@@ -82,15 +83,19 @@ export class MascotAudioPlayer {
   private animationFrame?: number;
   private objectUrl?: string;
   private requestController?: AbortController;
+  private streamReader?: ReadableStreamDefaultReader<Uint8Array>;
   private cancelPlayback?: () => void;
   private readonly interactionRequests = new Map<
     MascotInteractionVoiceId,
     Promise<void>
   >();
+  private readonly cachedInteractionVoices =
+    new Set<MascotInteractionVoiceId>();
   private readonly interactionRequestController = new AbortController();
   private runId = 0;
   private reportingPhase = false;
   private smoothedMouth = 0;
+  private tailHold?: { done: boolean; resolve: () => void };
 
   constructor(private readonly options: AudioPlayerOptions) {}
 
@@ -131,13 +136,28 @@ export class MascotAudioPlayer {
       Math.max(1, this.options.maxSegmentChars),
     );
     if (segments.length === 0) return;
+    const controller = new AbortController();
+    this.requestController = controller;
 
     try {
       this.reportingPhase = true;
       this.options.onPhaseChange("loading");
-      for (const segment of segments) {
+      let pendingResponse = this.fetchSegment(segments[0]!, controller);
+      for (const [index] of segments.entries()) {
         if (runId !== this.runId) return;
-        await this.playSegment(segment, runId);
+        const response = await pendingResponse;
+        const nextSegment = segments[index + 1];
+        if (nextSegment) {
+          // 当前段播放时并行准备下一段，避免句间再次等待网络首包。
+          pendingResponse = this.fetchSegment(nextSegment, controller);
+          void pendingResponse.catch(() => undefined);
+        }
+        await this.playAudioResponse(
+          response,
+          runId,
+          index === segments.length - 1,
+          controller.signal,
+        );
       }
       if (runId === this.runId) this.options.onPhaseChange("idle");
     } catch (error) {
@@ -148,6 +168,9 @@ export class MascotAudioPlayer {
         : new MascotAudioPlayerError("语音暂时不可用，请稍后再试。");
     } finally {
       if (runId === this.runId) {
+        if (this.requestController === controller) {
+          this.requestController = undefined;
+        }
         this.reportingPhase = false;
         this.releasePlaybackResources();
         this.options.adapter.setMouthOpen(0);
@@ -158,7 +181,9 @@ export class MascotAudioPlayer {
   }
 
   async preloadInteractionVoices() {
-    const queue = [...MASCOT_INTERACTION_VOICE_IDS];
+    const queue = MASCOT_INTERACTION_VOICE_IDS.filter(
+      (id) => !this.cachedInteractionVoices.has(id),
+    );
     const worker = async () => {
       while (queue.length > 0) {
         const id = queue.shift();
@@ -184,8 +209,8 @@ export class MascotAudioPlayer {
       await this.playAudioUrl(
         mascotInteractionVoiceUrl(id),
         runId,
-        getMascotInteractionVoice(id).expression,
         unlockPromise,
+        true,
       );
     } catch (error) {
       if (runId !== this.runId || isAbortError(error)) return;
@@ -202,12 +227,15 @@ export class MascotAudioPlayer {
   }
 
   stop() {
+    const wasReportingPhase = this.reportingPhase;
     this.cancelCurrentPlayback(false);
     this.reportingPhase = false;
+    if (wasReportingPhase) this.options.onPhaseChange("idle");
   }
 
   private cancelCurrentPlayback(preserveExpression: boolean) {
     this.runId += 1;
+    this.cancelTailHold();
     this.requestController?.abort();
     this.requestController = undefined;
     const cancelPlayback = this.cancelPlayback;
@@ -223,38 +251,64 @@ export class MascotAudioPlayer {
     this.stop();
     this.interactionRequestController.abort();
     this.interactionRequests.clear();
+    this.cachedInteractionVoices.clear();
     const context = this.audioContext;
     this.audioContext = undefined;
     if (context && context.state !== "closed") void context.close();
   }
 
-  private async playSegment(text: string, runId: number) {
+  private async fetchSegment(text: string, controller: AbortController) {
     this.options.onPhaseChange("loading");
-    const controller = new AbortController();
-    this.requestController = controller;
-    let audioBlob: Blob;
-    try {
-      const response = await fetch("/api/mascot/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new MascotAudioPlayerError(await getErrorMessage(response));
-      }
-      audioBlob = await response.blob();
-    } finally {
-      if (this.requestController === controller) {
-        this.requestController = undefined;
-      }
+    const response = await fetch("/api/mascot/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new MascotAudioPlayerError(await getErrorMessage(response));
+    }
+    if (!response.body) {
+      throw new MascotAudioPlayerError("语音服务没有返回可播放的音频。");
+    }
+    return response;
+  }
+
+  private async playAudioResponse(
+    response: Response,
+    runId: number,
+    holdTail = false,
+    abortSignal?: AbortSignal,
+  ) {
+    const contentType = (response.headers.get("content-type") ?? "audio/mpeg")
+      .split(";", 1)[0]!
+      .trim()
+      .toLowerCase();
+    if (
+      response.body &&
+      typeof MediaSource !== "undefined" &&
+      MediaSource.isTypeSupported(contentType)
+    ) {
+      await this.playAudioMediaStream(
+        response.body,
+        contentType,
+        runId,
+        holdTail,
+        abortSignal,
+      );
+      return;
+    }
+
+    const audioBlob = await response.blob();
+    if (!audioBlob.size) {
+      throw new MascotAudioPlayerError("语音服务返回了空音频。");
     }
     if (runId !== this.runId) return;
-
-    await this.playAudioBlob(audioBlob, runId);
+    await this.playAudioBlob(audioBlob, runId, holdTail);
   }
 
   private async cacheInteractionVoice(id: MascotInteractionVoiceId) {
+    if (this.cachedInteractionVoices.has(id)) return;
     const pending = this.interactionRequests.get(id);
     if (pending) return pending;
 
@@ -275,6 +329,7 @@ export class MascotAudioPlayer {
         ) {
           throw new MascotAudioPlayerError("互动语音缓存内容无效。");
         }
+        this.cachedInteractionVoices.add(id);
       })
       .finally(() => {
         this.interactionRequests.delete(id);
@@ -284,50 +339,135 @@ export class MascotAudioPlayer {
     return request;
   }
 
-  private async playAudioBlob(audioBlob: Blob, runId: number) {
+  private async playAudioBlob(
+    audioBlob: Blob,
+    runId: number,
+    holdTail = false,
+  ) {
     this.releasePlaybackResources();
     this.objectUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(this.objectUrl);
-    await this.playAudioElement(audio, runId);
+    await this.playAudioElement(audio, runId, { holdTail });
+  }
 
-    if (runId === this.runId) {
-      this.releasePlaybackResources();
-      this.options.adapter.setMouthOpen(0);
-      this.options.adapter.setLipSyncActive?.(false);
+  private async playAudioMediaStream(
+    body: ReadableStream<Uint8Array>,
+    contentType: string,
+    runId: number,
+    holdTail = false,
+    abortSignal?: AbortSignal,
+  ) {
+    this.releasePlaybackResources();
+    const mediaSource = new MediaSource();
+    this.objectUrl = URL.createObjectURL(mediaSource);
+    const audio = new Audio(this.objectUrl);
+    const appendPromise = this.appendMediaSource(
+      mediaSource,
+      body,
+      contentType,
+      runId,
+      abortSignal,
+    );
+
+    await Promise.all([
+      appendPromise,
+      this.playAudioElement(audio, runId, { holdTail }),
+    ]);
+  }
+
+  private async appendMediaSource(
+    mediaSource: MediaSource,
+    body: ReadableStream<Uint8Array>,
+    contentType: string,
+    runId: number,
+    abortSignal?: AbortSignal,
+  ) {
+    await new Promise<void>((resolve, reject) => {
+      if (abortSignal?.aborted) {
+        reject(signalAbortError(abortSignal));
+        return;
+      }
+      if (mediaSource.readyState === "open") {
+        resolve();
+        return;
+      }
+      const opened = () => {
+        cleanup();
+        resolve();
+      };
+      const closed = () => {
+        cleanup();
+        reject(new MascotAudioPlayerError("浏览器无法建立流式音频通道。"));
+      };
+      const aborted = () => {
+        cleanup();
+        reject(signalAbortError(abortSignal));
+      };
+      const cleanup = () => {
+        mediaSource.removeEventListener("sourceopen", opened);
+        mediaSource.removeEventListener("sourceclose", closed);
+        abortSignal?.removeEventListener("abort", aborted);
+      };
+      mediaSource.addEventListener("sourceopen", opened, { once: true });
+      mediaSource.addEventListener("sourceclose", closed, { once: true });
+      abortSignal?.addEventListener("abort", aborted, { once: true });
+    });
+    if (runId !== this.runId) return;
+
+    const sourceBuffer = mediaSource.addSourceBuffer(contentType);
+    const reader = body.getReader();
+    this.streamReader = reader;
+    try {
+      while (runId === this.runId) {
+        if (abortSignal?.aborted) throw signalAbortError(abortSignal);
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value.byteLength) continue;
+        await appendSourceBuffer(sourceBuffer, value, abortSignal);
+      }
+      if (runId === this.runId && mediaSource.readyState === "open") {
+        mediaSource.endOfStream();
+      }
+    } finally {
+      if (this.streamReader === reader) this.streamReader = undefined;
+      reader.releaseLock();
     }
   }
 
   private async playAudioUrl(
     url: string,
     runId: number,
-    expression: string,
     unlockPromise: Promise<void>,
+    holdTail = false,
   ) {
     this.releasePlaybackResources();
     const audio = new Audio(url);
-    await this.playAudioElement(audio, runId, expression, unlockPromise);
-
-    if (runId === this.runId) {
-      this.releasePlaybackResources();
-      this.options.adapter.setMouthOpen(0);
-      this.options.adapter.setLipSyncActive?.(false);
-    }
+    await this.playAudioElement(audio, runId, {
+      unlockPromise,
+      holdTail,
+      reportPhase: false,
+    });
   }
 
   private async playAudioElement(
     audio: HTMLAudioElement,
     runId: number,
-    expression?: string,
-    unlockPromise: Promise<void> = Promise.resolve(),
+    {
+      unlockPromise = Promise.resolve(),
+      holdTail = false,
+      reportPhase = true,
+    }: {
+      unlockPromise?: Promise<void>;
+      holdTail?: boolean;
+      reportPhase?: boolean;
+    } = {},
   ) {
     audio.preload = "auto";
     this.audio = audio;
 
     const analyserReady = this.prepareAnalyser(audio, runId);
     this.options.adapter.setLipSyncActive?.(true);
-    if (expression) {
-      this.options.adapter.triggerExpression?.(expression);
-    } else {
+    if (reportPhase) {
       this.options.adapter.setState?.("speaking");
       this.options.onPhaseChange("speaking");
     }
@@ -370,6 +510,9 @@ export class MascotAudioPlayer {
     this.startLipSync();
     const playbackError = await completion;
     if (playbackError) throw playbackError;
+    if (holdTail && runId === this.runId) {
+      await this.awaitTailHold();
+    }
   }
 
   private async prepareAnalyser(audio: HTMLAudioElement, runId: number) {
@@ -448,6 +591,39 @@ export class MascotAudioPlayer {
     this.animationFrame = requestAnimationFrame(update);
   }
 
+  private cancelTailHold() {
+    const hold = this.tailHold;
+    if (!hold || hold.done) return;
+    hold.done = true;
+    this.tailHold = undefined;
+    // 解除 awaitTailHold 的等待，让调用方通过 runId 检查自行退出。
+    // 不 clearTimeout：残留定时器会在 150ms 内触发并因 done=true 而空转。
+    hold.resolve();
+  }
+
+  /**
+   * 音频结束后保留表情与口型一小段时间（#4）。期间冻结口型（停止 RMS 采样，
+   * 保留最后一帧），不立即归零或回到 idle，视觉上更自然；可被取消。
+   */
+  private async awaitTailHold() {
+    const duration = this.options.tailHoldMs ?? 0;
+    if (duration <= 0) return;
+    if (this.animationFrame !== undefined) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = undefined;
+    }
+    await new Promise<void>((resolve) => {
+      const hold = { done: false, resolve };
+      this.tailHold = hold;
+      setTimeout(() => {
+        if (hold.done) return;
+        hold.done = true;
+        if (this.tailHold === hold) this.tailHold = undefined;
+        resolve();
+      }, duration);
+    });
+  }
+
   private releasePlaybackResources() {
     if (this.animationFrame !== undefined) {
       cancelAnimationFrame(this.animationFrame);
@@ -461,6 +637,12 @@ export class MascotAudioPlayer {
       this.audio.load();
       this.audio = undefined;
     }
+    const cancelPlayback = this.cancelPlayback;
+    this.cancelPlayback = undefined;
+    cancelPlayback?.();
+    const streamReader = this.streamReader;
+    this.streamReader = undefined;
+    void streamReader?.cancel().catch(() => undefined);
     this.source?.disconnect();
     this.analyser?.disconnect();
     this.source = undefined;
@@ -470,6 +652,56 @@ export class MascotAudioPlayer {
       this.objectUrl = undefined;
     }
   }
+}
+
+function appendSourceBuffer(
+  sourceBuffer: SourceBuffer,
+  chunk: Uint8Array,
+  abortSignal?: AbortSignal,
+) {
+  return new Promise<void>((resolve, reject) => {
+    if (abortSignal?.aborted) {
+      reject(signalAbortError(abortSignal));
+      return;
+    }
+    const completed = () => {
+      cleanup();
+      resolve();
+    };
+    const failed = () => {
+      cleanup();
+      reject(new MascotAudioPlayerError("流式语音数据无法继续播放。"));
+    };
+    const aborted = () => {
+      cleanup();
+      try {
+        if (sourceBuffer.updating) sourceBuffer.abort();
+      } catch {
+        // MediaSource 已关闭时 abort 会抛错，原始 AbortError 更能说明取消原因。
+      }
+      reject(signalAbortError(abortSignal));
+    };
+    const cleanup = () => {
+      sourceBuffer.removeEventListener("updateend", completed);
+      sourceBuffer.removeEventListener("error", failed);
+      abortSignal?.removeEventListener("abort", aborted);
+    };
+    sourceBuffer.addEventListener("updateend", completed, { once: true });
+    sourceBuffer.addEventListener("error", failed, { once: true });
+    abortSignal?.addEventListener("abort", aborted, { once: true });
+    try {
+      sourceBuffer.appendBuffer(new Uint8Array(chunk).buffer);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
+}
+
+function signalAbortError(signal?: AbortSignal) {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new DOMException("Audio playback aborted", "AbortError");
 }
 
 function isAbortError(error: unknown) {

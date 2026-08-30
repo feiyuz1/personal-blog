@@ -21,10 +21,6 @@ export class CurrentLive2DAdapter implements MascotLive2DAdapter {
   private state: MascotLive2DState = "idle";
   private disposed = false;
 
-  constructor() {
-    this.connect();
-  }
-
   connect() {
     if (typeof window !== "undefined") {
       this.disposed = false;

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
+import { voiceErrorMessage } from "../audio/errors";
 import { MascotAudioPlayer } from "../audio/player";
 import {
   getMascotInteractionVoice,
@@ -11,7 +13,18 @@ import type { MascotFeatureConfig, MascotHostContext } from "../core/types";
 import { CurrentLive2DAdapter } from "../live2d";
 import { useMascotStore } from "../store/mascot-store";
 import { MascotChat } from "./MascotChat";
+import { VoiceButton } from "./VoiceButton";
 import { useMascotPlacement } from "./use-mascot-placement";
+
+const VOICE_PREFERENCE_KEY = "mascot.voiceEnabled";
+
+function saveVoicePreference(enabled: boolean) {
+  try {
+    localStorage.setItem(VOICE_PREFERENCE_KEY, String(enabled));
+  } catch {
+    // 浏览器存储不可用时，本次访问仍可继续使用语音。
+  }
+}
 
 export function MascotRoot({
   hostContext,
@@ -28,12 +41,13 @@ export function MascotRoot({
   const closeChat = useMascotStore((state) => state.closeChat);
   const setChatPhase = useMascotStore((state) => state.setChatPhase);
   const setVoiceEnabled = useMascotStore((state) => state.setVoiceEnabled);
-  const setCurrentPage = useMascotStore((state) => state.setCurrentPage);
+  const setVoiceNotice = useMascotStore((state) => state.setVoiceNotice);
   const placement = useMascotPlacement();
   const chatTriggerRef = useRef<HTMLButtonElement>(null);
   const chatWasOpen = useRef(false);
   const interactionVoiceRun = useRef(0);
   const [petChatControlAvailable, setPetChatControlAvailable] = useState(false);
+  const [voiceHost, setVoiceHost] = useState<HTMLElement | null>(null);
   const [interactionVoiceActive, setInteractionVoiceActive] = useState(false);
 
   const live2dAdapter = useMemo(() => new CurrentLive2DAdapter(), []);
@@ -41,9 +55,12 @@ export function MascotRoot({
     () =>
       new MascotAudioPlayer({
         adapter: live2dAdapter,
-        maxSegmentChars: features.ttsMaxChars,
+        // 动态 TTS 控制在短段内，既降低首播时间，也避免长文本逼近 Provider 超时。
+        maxSegmentChars: Math.min(features.ttsMaxChars, 120),
         onPhaseChange: (phase) =>
           useMascotStore.getState().setVoicePhase(phase),
+        // 音频结束后保留表情与口型 150ms 再收尾，视觉上更自然。
+        tailHoldMs: 150,
       }),
     [features.ttsMaxChars, live2dAdapter],
   );
@@ -57,14 +74,10 @@ export function MascotRoot({
   }, [audioPlayer, live2dAdapter]);
 
   useEffect(() => {
-    setCurrentPage(hostContext.page);
-  }, [hostContext.page, setCurrentPage]);
-
-  useEffect(() => {
     let enabled = false;
     if (features.ttsEnabled && features.ttsConfigured) {
       try {
-        enabled = localStorage.getItem("mascot.voiceEnabled") === "true";
+        enabled = localStorage.getItem(VOICE_PREFERENCE_KEY) === "true";
       } catch {
         enabled = false;
       }
@@ -84,6 +97,12 @@ export function MascotRoot({
         ),
       );
       setPetChatControlAvailable(controls.length > 0);
+      const nextVoiceHost = document.querySelector<HTMLElement>(
+        "[data-mascot-voice-host]",
+      );
+      setVoiceHost((current) =>
+        current === nextVoiceHost ? current : nextVoiceHost,
+      );
     };
     const observer = new MutationObserver(syncPetChatControl);
     observer.observe(document.body, { childList: true, subtree: true });
@@ -97,6 +116,26 @@ export function MascotRoot({
     return () =>
       window.removeEventListener("mascot:open-chat", handlePetChatControl);
   }, [openChat]);
+
+  const voiceAvailable = features.ttsEnabled && features.ttsConfigured;
+  const toggleVoice = () => {
+    if (!voiceAvailable) return;
+    const next = !useMascotStore.getState().voiceEnabled;
+    setVoiceNotice(undefined);
+    // 先停止并回到 idle，再写入 muted，避免播放器的停止回调覆盖静音状态。
+    if (!next) audioPlayer.stop();
+    setVoiceEnabled(next);
+    saveVoicePreference(next);
+
+    if (!next) return;
+
+    // 固定语音统一由下面的空闲调度 effect 预加载，避免一次点击触发两轮请求。
+    void audioPlayer.unlock().catch((error) => {
+      setVoiceEnabled(false);
+      setVoiceNotice(voiceErrorMessage(error));
+      saveVoicePreference(false);
+    });
+  };
 
   useEffect(() => {
     if (!voiceEnabled || !features.ttsEnabled || !features.ttsConfigured) {
@@ -154,6 +193,7 @@ export function MascotRoot({
         .speakInteraction(id)
         .catch(() => {
           console.warn("Mascot interaction voice could not be played.");
+          setVoiceNotice("互动语音暂时无法播放，请稍后再试。");
         })
         .finally(() => {
           if (!disposed && runId === interactionVoiceRun.current) {
@@ -171,7 +211,13 @@ export function MascotRoot({
         handleInteractionVoice,
       );
     };
-  }, [audioPlayer, features.ttsConfigured, features.ttsEnabled, live2dAdapter]);
+  }, [
+    audioPlayer,
+    features.ttsConfigured,
+    features.ttsEnabled,
+    live2dAdapter,
+    setVoiceNotice,
+  ]);
 
   useEffect(() => {
     document.body.dataset.mascotChatOpen = String(chatOpen);
@@ -221,6 +267,18 @@ export function MascotRoot({
 
   return (
     <div data-mascot-root>
+      {voiceHost
+        ? createPortal(
+            <VoiceButton
+              mascotName={features.mascotName}
+              available={voiceAvailable}
+              enabled={voiceEnabled}
+              phase={voicePhase}
+              onToggle={toggleVoice}
+            />,
+            voiceHost,
+          )
+        : null}
       {!petChatControlAvailable ? (
         <button
           ref={chatTriggerRef}
