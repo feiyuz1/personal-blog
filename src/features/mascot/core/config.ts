@@ -104,7 +104,7 @@ export function getMascotTTSConfig() {
   }
 
   const configuredSpeed = Number.parseFloat(
-    optionalValue("MASCOT_TTS_SPEED") ?? "1.05",
+    optionalValue("MASCOT_TTS_SPEED") ?? "0.95",
   );
 
   return {
@@ -118,7 +118,7 @@ export function getMascotTTSConfig() {
     voice,
     speed: Number.isFinite(configuredSpeed)
       ? Math.min(4, Math.max(0.25, configuredSpeed))
-      : 1.05,
+      : 0.95,
   };
 }
 

@@ -5,6 +5,7 @@ type MascotLimits = {
   maxOutputTokens: number;
   requestsPerMinute: number;
   dailyRequestLimit: number;
+  ttsRequestsPerMinute: number;
   ttsMaxChars: number;
   ttsDailyCharLimit: number;
 };
@@ -38,6 +39,12 @@ export function getMascotLimits(): MascotLimits {
       30,
       1,
       10_000,
+    ),
+    ttsRequestsPerMinute: integerFromEnv(
+      "MASCOT_TTS_REQUESTS_PER_MINUTE",
+      24,
+      1,
+      240,
     ),
     ttsMaxChars: integerFromEnv("MASCOT_TTS_MAX_CHARS", 500, 1, 2_000),
     ttsDailyCharLimit: integerFromEnv(

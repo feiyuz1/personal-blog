@@ -65,14 +65,16 @@ export async function handleMascotTTSRequest(request: Request) {
       text: input.text,
       abortSignal: request.signal,
     });
-    const response = new Response(audio.data, {
-      headers: {
-        "Content-Type": audio.contentType,
-        "Content-Length": String(audio.data.byteLength),
-        "Cache-Control": "no-store",
-        "X-Content-Type-Options": "nosniff",
-      },
+    const headers = new Headers({
+      "Content-Type": audio.contentType,
+      "Cache-Control": "no-store, no-transform",
+      "X-Accel-Buffering": "no",
+      "X-Content-Type-Options": "nosniff",
     });
+    if (audio.contentLength !== undefined) {
+      headers.set("Content-Length", String(audio.contentLength));
+    }
+    const response = new Response(audio.body, { headers });
     return attachMascotVisitorCookie(response, visitor);
   } catch (error) {
     if (error instanceof MascotConfigurationError) {

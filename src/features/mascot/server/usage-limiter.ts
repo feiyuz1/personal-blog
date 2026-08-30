@@ -112,7 +112,7 @@ class MascotUsageLimiter {
         now + MINUTE_MS,
         now,
       );
-      if (counter.amount >= limits.requestsPerMinute) {
+      if (counter.amount >= limits.ttsRequestsPerMinute) {
         return {
           allowed: false,
           reason: "minute",
