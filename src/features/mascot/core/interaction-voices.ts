@@ -5,8 +5,17 @@ export const MASCOT_INTERACTION_VOICE_PROFILE = {
   baseUrl: "https://api.siliconflow.cn/v1",
   model: "FunAudioLLM/CosyVoice2-0.5B",
   voice: "FunAudioLLM/CosyVoice2-0.5B:diana",
-  speed: 1.05,
+  speed: 0.95,
   responseFormat: "mp3",
+  stylePrompt: "自然少女音，语速均匀，句尾不要加速。",
+  // 后处理参数：先生成 WAV，定位最后有效声音后淡出并补齐静音，最终编码为 MP3。
+  // 所有字段都参与缓存版本指纹，任意调整都会触发重新生成。
+  postProcessVersion: 2,
+  audibleRmsThreshold: 180,
+  maxDurationBaseMs: 3_000,
+  maxDurationPerCharMs: 350,
+  tailSilenceMs: 300,
+  fadeOutMs: 25,
 } as const;
 
 export const MASCOT_INTERACTION_VOICES = [

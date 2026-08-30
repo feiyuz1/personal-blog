@@ -14,8 +14,11 @@ import {
 } from "../src/features/mascot/core/interaction-voices";
 import { getMascotTTSConfig } from "../src/features/mascot/core/config";
 import { createMascotTTSProvider } from "../src/features/mascot/tts";
+import { postProcessInteractionVoice } from "./mascot-audio-postprocess";
 
 const MAX_AUDIO_BYTES = 5_000_000;
+// 96kbps MP3 超过 180KB 已接近 15 秒，远超当前短互动台词的合理时长。
+const MAX_CACHED_AUDIO_BYTES = 180_000;
 const GENERATED_MODULE = path.join(
   process.cwd(),
   "src/features/mascot/core/interaction-voice-assets.generated.ts",
@@ -57,7 +60,7 @@ function sha256(data: Uint8Array) {
 async function readValidAudio(file: string) {
   try {
     const info = await stat(file);
-    if (info.size <= 0 || info.size > MAX_AUDIO_BYTES) return undefined;
+    if (info.size <= 0 || info.size > MAX_CACHED_AUDIO_BYTES) return undefined;
     return await readFile(file);
   } catch {
     return undefined;
@@ -100,37 +103,54 @@ function assertConfiguredProfile() {
     model: configured.model,
     voice: configured.voice,
     speed: configured.speed,
-    responseFormat: "mp3",
+  };
+  // 只校验真正来自环境的字段；其余后处理参数本身就在 profile 中并参与版本指纹。
+  const expected = {
+    provider: MASCOT_INTERACTION_VOICE_PROFILE.provider,
+    baseUrl: MASCOT_INTERACTION_VOICE_PROFILE.baseUrl,
+    model: MASCOT_INTERACTION_VOICE_PROFILE.model,
+    voice: MASCOT_INTERACTION_VOICE_PROFILE.voice,
+    speed: MASCOT_INTERACTION_VOICE_PROFILE.speed,
   };
 
-  if (
-    JSON.stringify(actual) !== JSON.stringify(MASCOT_INTERACTION_VOICE_PROFILE)
-  ) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(
       "当前 TTS 配置与固定语音 profile 不一致；请先同步 interaction-voices.ts 中的 profile。",
     );
   }
 }
 
-async function synthesizeWithRetry(
+async function synthesizeInteractionVoiceWithRetry(
   text: string,
   provider: ReturnType<typeof createMascotTTSProvider>,
 ) {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
+      // 先请求 WAV（16-bit PCM），交给后处理统一追加尾部静音、淡出并编码为 MP3。
       const audio = await provider.synthesize({
-        text,
+        text: `${MASCOT_INTERACTION_VOICE_PROFILE.stylePrompt}<|endofprompt|>${text}`,
+        responseFormat: "wav",
         abortSignal: AbortSignal.timeout(60_000),
       });
+      const data = Buffer.from(await new Response(audio.body).arrayBuffer());
       if (
         !audio.contentType.toLowerCase().startsWith("audio/") ||
-        audio.data.byteLength <= 0 ||
-        audio.data.byteLength > MAX_AUDIO_BYTES
+        data.byteLength <= 0 ||
+        data.byteLength > MAX_AUDIO_BYTES
       ) {
         throw new Error("TTS Provider 返回的音频格式或大小无效。");
       }
-      return Buffer.from(audio.data);
+      return postProcessInteractionVoice(data, {
+        audibleRmsThreshold:
+          MASCOT_INTERACTION_VOICE_PROFILE.audibleRmsThreshold,
+        maxDurationMs:
+          MASCOT_INTERACTION_VOICE_PROFILE.maxDurationBaseMs +
+          Array.from(text).length *
+            MASCOT_INTERACTION_VOICE_PROFILE.maxDurationPerCharMs,
+        tailSilenceMs: MASCOT_INTERACTION_VOICE_PROFILE.tailSilenceMs,
+        fadeOutMs: MASCOT_INTERACTION_VOICE_PROFILE.fadeOutMs,
+      });
     } catch (error) {
       lastError = error;
       if (attempt < 3) {
@@ -151,12 +171,12 @@ async function generateAssets() {
 
   for (const [index, voice] of MASCOT_INTERACTION_VOICES.entries()) {
     const file = path.join(directory, `${voice.id}.mp3`);
-    let data = await readValidAudio(file);
+    let data: Buffer | undefined = await readValidAudio(file);
     if (!data) {
       console.log(
         `正在生成固定互动语音 ${index + 1}/${MASCOT_INTERACTION_VOICES.length}：${voice.id}`,
       );
-      data = await synthesizeWithRetry(voice.text, provider);
+      data = await synthesizeInteractionVoiceWithRetry(voice.text, provider);
       await writeFile(file, data);
     } else {
       console.log(
@@ -167,7 +187,7 @@ async function generateAssets() {
   }
 
   const generatedSource = `// 由 scripts/generate-mascot-interaction-voices.ts 自动生成。
-// 修改音色配置或台词后，请运行 \`npm run mascot:cache-voices\`。
+// 修改音色配置、台词、语速、尾部静音或淡出参数后，请运行 \`npm run mascot:cache-voices\`。
 export const MASCOT_INTERACTION_VOICE_VERSION = ${JSON.stringify(version)} as const;
 
 export const MASCOT_INTERACTION_VOICE_ASSET_SHA256 = ${JSON.stringify(hashes, null, 2)} as const;
