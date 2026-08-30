@@ -59,8 +59,8 @@ export function MascotRoot({
         maxSegmentChars: Math.min(features.ttsMaxChars, 120),
         onPhaseChange: (phase) =>
           useMascotStore.getState().setVoicePhase(phase),
-        // 音频结束后保留表情与口型 150ms 再收尾，视觉上更自然。
-        tailHoldMs: 150,
+        // 音频结束后用 260ms 平滑收拢口型与表情，给句尾留下自然停顿。
+        tailHoldMs: 260,
       }),
     [features.ttsMaxChars, live2dAdapter],
   );

@@ -125,6 +125,7 @@ async function waitForMediaSource() {
 async function checkPlayer() {
   const originalFetch = globalThis.fetch;
   const cachedUrls: string[] = [];
+  const mouthValues: number[] = [];
   globalThis.fetch = async (input) => {
     const url = String(input);
     if (url.includes("/interaction-voice/")) cachedUrls.push(url);
@@ -135,7 +136,9 @@ async function checkPlayer() {
   const player = new MascotAudioPlayer({
     adapter: {
       dispose() {},
-      setMouthOpen() {},
+      setMouthOpen(value) {
+        mouthValues.push(value);
+      },
       setLipSyncActive() {},
       setState() {},
       getLipSyncParameterIds() {
@@ -143,6 +146,7 @@ async function checkPlayer() {
       },
     },
     maxSegmentChars: 300,
+    tailHoldMs: 10,
     onPhaseChange() {},
   });
 
@@ -182,13 +186,14 @@ async function checkPlayer() {
 
     FakeAudio.instances[interactionStart + 1]?.onended?.();
     await Promise.all([firstPlayback, secondPlayback]);
+    assert.equal(mouthValues.at(-1), 0, "音频结束后口型必须平滑收拢到闭合状态");
   } finally {
     player.dispose();
     globalThis.fetch = originalFetch;
   }
 
   console.log(
-    "语音播放器回归通过：流式首播可取消，缓存不重复请求，连续点击最后一次优先。",
+    "语音播放器回归通过：流式首播可取消，缓存不重复请求，连续点击最后一次优先，句尾口型可正常收拢。",
   );
 }
 

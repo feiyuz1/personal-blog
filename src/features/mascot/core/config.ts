@@ -116,6 +116,10 @@ export function getMascotTTSConfig() {
     apiKey,
     model,
     voice,
+    // CosyVoice 的指令式音色提示；只在硅基流动动态 MP3 对话中注入。
+    stylePrompt:
+      optionalValue("MASCOT_TTS_STYLE_PROMPT") ??
+      "自然少女音，语速均匀，句尾不要加速。",
     speed: Number.isFinite(configuredSpeed)
       ? Math.min(4, Math.max(0.25, configuredSpeed))
       : 0.95,

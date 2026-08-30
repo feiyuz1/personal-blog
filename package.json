@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm run mascot:check-voices && npm run mascot:check-player && npm run mascot:check-chat-stream",
+    "prebuild": "npm run mascot:check-voices && npm run mascot:check-player && npm run mascot:check-chat-stream && npm run mascot:check-tts",
     "build": "next build",
     "prestart": "node scripts/prepare-standalone.mjs",
     "start": "node --env-file=.env .next/standalone/server.js",
@@ -21,6 +21,7 @@
     "mascot:check-voices": "tsx scripts/generate-mascot-interaction-voices.ts --check",
     "mascot:check-player": "tsx scripts/check-mascot-interaction-player.ts",
     "mascot:check-chat-stream": "tsx scripts/check-mascot-chat-stream.ts",
+    "mascot:check-tts": "tsx scripts/check-mascot-tts.ts",
     "db:up": "prisma dev -d --name personal-blog",
     "db:down": "prisma dev stop personal-blog",
     "db:status": "prisma dev ls",

@@ -95,7 +95,7 @@ export class MascotAudioPlayer {
   private runId = 0;
   private reportingPhase = false;
   private smoothedMouth = 0;
-  private tailHold?: { done: boolean; resolve: () => void };
+  private tailHold?: { done: boolean; finish: () => void };
 
   constructor(private readonly options: AudioPlayerOptions) {}
 
@@ -594,16 +594,12 @@ export class MascotAudioPlayer {
   private cancelTailHold() {
     const hold = this.tailHold;
     if (!hold || hold.done) return;
-    hold.done = true;
-    this.tailHold = undefined;
-    // 解除 awaitTailHold 的等待，让调用方通过 runId 检查自行退出。
-    // 不 clearTimeout：残留定时器会在 150ms 内触发并因 done=true 而空转。
-    hold.resolve();
+    hold.finish();
   }
 
   /**
-   * 音频结束后保留表情与口型一小段时间（#4）。期间冻结口型（停止 RMS 采样，
-   * 保留最后一帧），不立即归零或回到 idle，视觉上更自然；可被取消。
+   * 音频结束后保留表情一小段时间，并把口型从最后采样值平滑归零。
+   * 这段缓冲不会重复播放音频，也可被下一次发声立即取消。
    */
   private async awaitTailHold() {
     const duration = this.options.tailHoldMs ?? 0;
@@ -612,15 +608,41 @@ export class MascotAudioPlayer {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = undefined;
     }
+    const initialMouth = this.smoothedMouth;
     await new Promise<void>((resolve) => {
-      const hold = { done: false, resolve };
+      const startedAt = performance.now();
+      const hold = {
+        done: false,
+        timeoutId: undefined as ReturnType<typeof setTimeout> | undefined,
+        finish: () => {
+          if (hold.done) return;
+          hold.done = true;
+          if (hold.timeoutId !== undefined) clearTimeout(hold.timeoutId);
+          if (this.animationFrame !== undefined) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = undefined;
+          }
+          this.smoothedMouth = 0;
+          this.options.adapter.setMouthOpen(0);
+          if (this.tailHold === hold) this.tailHold = undefined;
+          resolve();
+        },
+      };
       this.tailHold = hold;
-      setTimeout(() => {
+      const softenMouth = (now: number) => {
         if (hold.done) return;
-        hold.done = true;
-        if (this.tailHold === hold) this.tailHold = undefined;
-        resolve();
-      }, duration);
+        const progress = Math.min(1, (now - startedAt) / duration);
+        this.smoothedMouth = initialMouth * (1 - progress);
+        this.options.adapter.setMouthOpen(this.smoothedMouth);
+        if (progress >= 1) {
+          hold.finish();
+          return;
+        }
+        this.animationFrame = requestAnimationFrame(softenMouth);
+      };
+      this.animationFrame = requestAnimationFrame(softenMouth);
+      // 后台标签页可能暂停 RAF，用定时器保证缓冲一定能够结束。
+      hold.timeoutId = setTimeout(hold.finish, duration);
     });
   }
 

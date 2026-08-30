@@ -103,6 +103,7 @@ function assertConfiguredProfile() {
     model: configured.model,
     voice: configured.voice,
     speed: configured.speed,
+    stylePrompt: configured.stylePrompt,
   };
   // 只校验真正来自环境的字段；其余后处理参数本身就在 profile 中并参与版本指纹。
   const expected = {
@@ -111,6 +112,7 @@ function assertConfiguredProfile() {
     model: MASCOT_INTERACTION_VOICE_PROFILE.model,
     voice: MASCOT_INTERACTION_VOICE_PROFILE.voice,
     speed: MASCOT_INTERACTION_VOICE_PROFILE.speed,
+    stylePrompt: MASCOT_INTERACTION_VOICE_PROFILE.stylePrompt,
   };
 
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {

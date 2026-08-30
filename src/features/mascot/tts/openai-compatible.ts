@@ -5,12 +5,43 @@ import type {
 } from "./provider";
 
 type OpenAICompatibleTTSConfig = {
+  provider: string;
   baseUrl: string;
   apiKey: string;
   model: string;
   voice: string;
+  stylePrompt: string;
   speed: number;
 };
+
+const COSYVOICE_PROMPT_SEPARATOR = "<|endofprompt|>";
+const TERMINAL_PUNCTUATION = /[。！？!?；;…][”’"'）)】》」』]*$/u;
+
+/**
+ * 动态对话 TTS 的文本归一化：补齐句末停顿，并仅为硅基流动 CosyVoice
+ * 加入指令式风格提示。WAV 构建素材已自行携带提示，不能重复注入。
+ */
+export function prepareTTSProviderInput(
+  text: string,
+  config: Pick<OpenAICompatibleTTSConfig, "provider" | "model" | "stylePrompt">,
+  responseFormat: "mp3" | "wav",
+) {
+  const shouldInjectCosyVoicePrompt =
+    responseFormat === "mp3" &&
+    config.provider.toLowerCase().includes("silicon") &&
+    config.model.toLowerCase().includes("cosyvoice");
+  const safeText = shouldInjectCosyVoicePrompt
+    ? text.replaceAll(COSYVOICE_PROMPT_SEPARATOR, " ").trim()
+    : text.trim();
+  const punctuated = TERMINAL_PUNCTUATION.test(safeText)
+    ? safeText
+    : `${safeText}。`;
+
+  if (!shouldInjectCosyVoicePrompt || !config.stylePrompt.trim()) {
+    return punctuated;
+  }
+  return `${config.stylePrompt.trim()}${COSYVOICE_PROMPT_SEPARATOR}${punctuated}`;
+}
 
 export class OpenAICompatibleTTSProvider implements MascotTTSProvider {
   constructor(private readonly config: OpenAICompatibleTTSConfig) {}
@@ -28,7 +59,7 @@ export class OpenAICompatibleTTSProvider implements MascotTTSProvider {
       },
       body: JSON.stringify({
         model: this.config.model,
-        input: text,
+        input: prepareTTSProviderInput(text, this.config, responseFormat),
         voice: this.config.voice,
         speed: this.config.speed,
         response_format: responseFormat,
