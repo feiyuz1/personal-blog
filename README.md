@@ -126,6 +126,8 @@ DATABASE_URL=postgresql://user:pass@host:5432/db npx prisma migrate deploy
 
 详见 `Dockerfile`、`compose.prod.yml`、`nginx/blog.conf`。CI 配置见 `.github/workflows/ci.yml`。
 
+构建完成后会自动准备 standalone 资源，并移除发布目录中的所有 `.env*` 文件；通过 `npm start` 启动前也会再次清理。项目根目录的 `.env` 保留，供本地 `npm start` 读取。Docker 构建上下文同样排除 `.env*`，生产凭据通过 Compose 或服务管理器在运行时注入，不要把环境文件放入发布包。部署时必须单独设置随机的 `SESSION_SECRET`，它与管理员登录密码分别管理。
+
 ## 常见问题
 
 - `prisma:push` / `prisma:seed` 报数据库连接问题：先 `npm run db:status` 查看状态，必要时重新 `npm run db:up`。
