@@ -9,7 +9,6 @@ export const siteConfig: SiteConfig = {
   navItems: [
     { label: "首页", href: "/", description: "回到博客首页" },
     { label: "博客", href: "/blog", description: "浏览全部文章" },
-    { label: "归档", href: "/archive", description: "按时间归档" },
     { label: "项目", href: "/projects", description: "项目作品集" },
     { label: "关于我", href: "/about", description: "了解更多" },
   ],

@@ -5,7 +5,6 @@ import type { SiteConfig } from "@/types/content";
 const QUICK_LINKS = [
   { href: "/blog", label: "全部文章" },
   { href: "/projects", label: "项目展示" },
-  { href: "/archive", label: "文章归档" },
   { href: "/about", label: "关于我" },
 ];
 
@@ -18,7 +17,7 @@ export function SiteHeader({
 }) {
   const navItems = new Map(QUICK_LINKS.map(({ href, label }) => [href, label]));
   for (const { href, label } of config.navItems) {
-    if (href === "/contact" || href === "/categories") continue;
+    if (["/archive", "/categories", "/contact"].includes(href)) continue;
     if (!navItems.has(href) && (showSearchLink || href !== "/search")) {
       navItems.set(href, label);
     }
