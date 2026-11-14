@@ -1,59 +1,78 @@
 import Link from "next/link";
 
 import { PostCard } from "@/components/content/post-card";
-import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
 import { Pill } from "@/components/ui/pill";
-import type {
-  CategorySummary,
-  PostSummary,
-  SiteConfig,
-  SiteStat,
-  TagSummary,
-} from "@/types/content";
+import type { CategorySummary, PostSummary, TagSummary } from "@/types/content";
 
-export function HomePage({
-  config,
-  featuredPosts,
-  latestPosts,
-  categories,
-  tags,
-  stats,
-}: {
-  config: SiteConfig;
+import { HomeSearch } from "./home-search";
+
+type HomeOverview = {
   featuredPosts: PostSummary[];
   latestPosts: PostSummary[];
   categories: CategorySummary[];
   tags: TagSummary[];
-  stats: SiteStat[];
-}) {
+};
+
+type HomeSearchResult = {
+  keyword: string;
+  results: PostSummary[];
+};
+
+export function HomePage({
+  overview,
+  search,
+}:
+  | { overview: HomeOverview; search?: never }
+  | {
+      overview?: never;
+      search: HomeSearchResult;
+    }) {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 md:px-10 md:py-14">
-      <PageHero
-        eyebrow={config.heroLabel}
-        title={config.title}
-        description={config.description}
-        aside={
-          <div className="rounded-[1.5rem] bg-slate-950 p-6 text-slate-50">
-            <p className="text-sm tracking-[0.24em] text-emerald-300/80 uppercase">
-              博客数据
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
-                >
-                  <p className="text-2xl font-semibold">{stat.value}</p>
-                  <p className="mt-1 text-sm text-slate-200">{stat.label}</p>
-                  <p className="mt-2 text-xs text-slate-400">{stat.hint}</p>
-                </div>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-6 md:px-10 md:py-8">
+      <HomeSearch key={search?.keyword ?? ""} keyword={search?.keyword ?? ""} />
+      {search ? (
+        <section aria-labelledby="search-results-heading" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1
+              id="search-results-heading"
+              className="text-xl font-semibold text-slate-900"
+            >
+              搜索结果
+            </h1>
+            <Link
+              href="/"
+              className="text-sm font-medium text-emerald-800 hover:underline"
+            >
+              清除搜索
+            </Link>
+          </div>
+          {search.results.length ? (
+            <div className="grid gap-4">
+              {search.results.map((post) => (
+                <PostCard key={post.slug} post={post} />
               ))}
             </div>
-          </div>
-        }
-      />
+          ) : (
+            <p className="text-sm text-slate-600">没有找到匹配的文章。</p>
+          )}
+        </section>
+      ) : (
+        <Overview {...overview} />
+      )}
+    </div>
+  );
+}
 
+function Overview({
+  featuredPosts,
+  latestPosts,
+  categories,
+  tags,
+}: HomeOverview) {
+  return (
+    <>
+      <h1 className="sr-only">首页</h1>
       {/* 置顶 / 推荐文章 */}
       <section className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
         <Panel title="推荐文章" description="精选内容，值得从头读起。">
@@ -86,36 +105,6 @@ export function HomePage({
               ))}
             </div>
           </Panel>
-
-          {/* 快速导航 */}
-          <Panel title="快速入口" description="常用页面直达。">
-            <div className="flex flex-wrap gap-3 text-sm">
-              <Link
-                href="/blog"
-                className="rounded-full border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
-              >
-                全部文章
-              </Link>
-              <Link
-                href="/projects"
-                className="rounded-full border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
-              >
-                项目展示
-              </Link>
-              <Link
-                href="/archive"
-                className="rounded-full border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
-              >
-                文章归档
-              </Link>
-              <Link
-                href="/about"
-                className="rounded-full border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
-              >
-                关于我
-              </Link>
-            </div>
-          </Panel>
         </div>
       </section>
 
@@ -138,6 +127,6 @@ export function HomePage({
           </Link>
         </div>
       </Panel>
-    </div>
+    </>
   );
 }

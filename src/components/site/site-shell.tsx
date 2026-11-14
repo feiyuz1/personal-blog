@@ -9,13 +9,15 @@ import type { SiteConfig } from "@/types/content";
 export function SiteShell({
   children,
   config,
+  showSearchLink = true,
 }: {
   children: ReactNode;
   config: SiteConfig;
+  showSearchLink?: boolean;
 }) {
   return (
     <div className="min-h-screen">
-      <SiteHeader config={config} />
+      <SiteHeader config={config} showSearchLink={showSearchLink} />
       <main>{children}</main>
       <SiteFooter config={config} />
       <MascotMount

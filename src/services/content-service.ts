@@ -205,19 +205,6 @@ export async function getSiteConfig(): Promise<SiteConfig> {
   };
 }
 
-export async function listFeaturedPosts(): Promise<PostSummary[]> {
-  const posts = await prisma.post.findMany({
-    where: { status: PostStatus.PUBLISHED, isTop: true },
-    orderBy: { publishedAt: "desc" },
-    include: {
-      category: true,
-      postTags: { include: { tag: true } },
-    },
-  });
-
-  return posts.map(toPostSummary);
-}
-
 export async function listPosts(): Promise<PostSummary[]> {
   const posts = await prisma.post.findMany({
     where: { status: PostStatus.PUBLISHED },
@@ -392,8 +379,28 @@ export async function listPostsByTag(tagSlug: string): Promise<PostSummary[]> {
   return posts.map(toPostSummary);
 }
 
+function postSearchTerm(keyword: string) {
+  // Prisma implements substring searches with LIKE/ILIKE on PostgreSQL.
+  return keyword.trim().replace(/[\\%_]/g, "\\$&");
+}
+
+export async function suggestPostTitles(keyword: string) {
+  const term = postSearchTerm(keyword);
+  if (!term) return [];
+
+  return prisma.post.findMany({
+    where: {
+      status: PostStatus.PUBLISHED,
+      title: { contains: term, mode: "insensitive" },
+    },
+    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+    take: 6,
+    select: { title: true, slug: true },
+  });
+}
+
 export async function searchPosts(keyword: string): Promise<PostSummary[]> {
-  const normalized = keyword.trim();
+  const normalized = postSearchTerm(keyword);
   if (!normalized) return [];
 
   const posts = await prisma.post.findMany({

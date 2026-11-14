@@ -2,38 +2,62 @@ import Link from "next/link";
 
 import type { SiteConfig } from "@/types/content";
 
-export function SiteHeader({ config }: { config: SiteConfig }) {
+const QUICK_LINKS = [
+  { href: "/blog", label: "全部文章" },
+  { href: "/projects", label: "项目展示" },
+  { href: "/archive", label: "文章归档" },
+  { href: "/about", label: "关于我" },
+];
+
+export function SiteHeader({
+  config,
+  showSearchLink,
+}: {
+  config: SiteConfig;
+  showSearchLink: boolean;
+}) {
+  const navItems = new Map(QUICK_LINKS.map(({ href, label }) => [href, label]));
+  for (const { href, label } of config.navItems) {
+    if (!navItems.has(href) && (showSearchLink || href !== "/search")) {
+      navItems.set(href, label);
+    }
+  }
+
   return (
     <header className="sticky top-0 z-30 border-b border-black/5 bg-[rgba(244,239,229,0.82)] backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4 md:px-10">
-        <Link href="/" className="space-y-1">
-          <p className="text-xs font-semibold tracking-[0.28em] text-emerald-800/70 uppercase">
-            {config.heroLabel}
-          </p>
-          <div>
-            <p className="text-lg font-semibold text-slate-900">
-              {config.title}
-            </p>
-            <p className="text-sm text-slate-600">{config.subtitle}</p>
-          </div>
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-start gap-2 px-6 py-3 md:flex-row md:items-center md:justify-between md:gap-6 md:px-10">
+        <Link href="/" className="shrink-0">
+          {config.heroLabel && (
+            <span className="block text-xs font-semibold tracking-[0.28em] text-emerald-800/70 uppercase">
+              {config.heroLabel}
+            </span>
+          )}
+          <span className="block text-lg font-semibold text-slate-900">
+            {config.title}
+          </span>
         </Link>
 
-        <nav className="hidden flex-wrap items-center gap-5 md:flex">
-          {config.navItems.map((item) => (
+        <nav
+          aria-label="站点导航"
+          className="flex max-w-full min-w-0 items-center gap-3 overflow-x-auto md:gap-5"
+        >
+          {Array.from(navItems, ([href, label]) => (
             <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-slate-700 transition hover:text-slate-950"
+              key={href}
+              href={href}
+              className="shrink-0 py-1.5 text-sm font-medium whitespace-nowrap text-slate-700 transition hover:text-slate-950"
             >
-              {item.label}
+              {label}
             </Link>
           ))}
-          <Link
-            href="/search"
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
-          >
-            搜索
-          </Link>
+          {showSearchLink && !navItems.has("/search") && (
+            <Link
+              href="/search"
+              className="shrink-0 rounded-full border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-950 hover:text-slate-950"
+            >
+              搜索
+            </Link>
+          )}
         </nav>
       </div>
     </header>

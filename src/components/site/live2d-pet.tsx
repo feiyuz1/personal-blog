@@ -508,7 +508,7 @@ export function Live2DPet() {
           cubism5Path:
             process.env.NEXT_PUBLIC_LIVE2D_CUBISM_CORE_URL ??
             DEFAULT_CUBISM_CORE_URL,
-          tools: ["photo", "info", "quit"],
+          tools: ["quit"],
           drag: false,
           showToggleAfterQuit: true,
           logLevel: "warn",
