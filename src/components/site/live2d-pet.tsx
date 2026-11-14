@@ -8,13 +8,14 @@ import {
   type MascotInteractionExpression,
   type MascotInteractionVoice,
 } from "@/features/mascot/core/interaction-voices";
+import {
+  LIVE2D_MOC_PATH,
+  LIVE2D_MODEL_PATH,
+  LIVE2D_TIPS_PATH,
+  getLive2DCubismCoreUrl,
+  getLive2DWidgetBaseUrl,
+} from "@/features/mascot/live2d/assets";
 
-const MODEL_PATH =
-  "/pet/pachan%202.0/pachirisu%20anime%20girl%20-%20top%20half.model3.json";
-const TIPS_PATH = "/live2d/waifu-tips.json";
-const DEFAULT_WIDGET_BASE_URL = "/live2d/widget/";
-const DEFAULT_CUBISM_CORE_URL =
-  "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js";
 const PET_POSITION_STORAGE_KEY = "live2d-pet-position";
 const PET_VIEWPORT_MARGIN = 8;
 type PetMode = "checking" | "preview" | "live2d";
@@ -471,21 +472,17 @@ export function Live2DPet() {
       }
 
       try {
-        const modelResponse = await fetch(MODEL_PATH, {
-          cache: "no-store",
-        });
+        const widgetBaseUrl = getLive2DWidgetBaseUrl();
 
-        if (!modelResponse.ok) {
-          if (!cancelled) setMode("preview");
-          return;
-        }
+        // widget 要等 Cubism Core 与 chunk 就绪后才会请求 moc3 / 提示语，
+        // 这里先并行预热，让大文件下载与初始化重叠；后续请求命中 HTTP 缓存。
+        void fetch(LIVE2D_MOC_PATH).catch(() => {});
+        void fetch(LIVE2D_TIPS_PATH).catch(() => {});
 
-        const widgetBaseUrl = (
-          process.env.NEXT_PUBLIC_LIVE2D_WIDGET_BASE_URL ??
-          DEFAULT_WIDGET_BASE_URL
-        ).replace(/\/?$/, "/");
-
-        await Promise.all([
+        // 模型探测与运行时资源并行加载，避免多花一个串行往返；
+        // 模型 JSON 交给浏览器 HTTP 缓存，复访时直接命中。
+        const [modelResponse] = await Promise.all([
+          fetch(LIVE2D_MODEL_PATH),
           loadWidgetResource(
             "live2d-widget-styles",
             `${widgetBaseUrl}waifu.css`,
@@ -497,6 +494,11 @@ export function Live2DPet() {
             "script",
           ),
         ]);
+
+        if (!modelResponse.ok) {
+          if (!cancelled) setMode("preview");
+          return;
+        }
         if (cancelled) return;
 
         if (!window.initWidget) {
@@ -504,10 +506,8 @@ export function Live2DPet() {
         }
 
         const config: WidgetConfig = {
-          waifuPath: TIPS_PATH,
-          cubism5Path:
-            process.env.NEXT_PUBLIC_LIVE2D_CUBISM_CORE_URL ??
-            DEFAULT_CUBISM_CORE_URL,
+          waifuPath: LIVE2D_TIPS_PATH,
+          cubism5Path: getLive2DCubismCoreUrl(),
           tools: ["quit"],
           drag: false,
           showToggleAfterQuit: true,

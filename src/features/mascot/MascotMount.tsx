@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getMascotFeatureConfig } from "./core/config";
 import type { MascotHostContext } from "./core/types";
 import { BlogMascotHost } from "./host/blog-adapter";
+import { Live2DAssetPreloads } from "./live2d/preloads";
 
 export function MascotMount({
   hostContext,
@@ -16,7 +17,12 @@ export function MascotMount({
 
   return (
     <>
-      {features.live2dEnabled ? renderer : null}
+      {features.live2dEnabled ? (
+        <>
+          <Live2DAssetPreloads />
+          {renderer}
+        </>
+      ) : null}
       <BlogMascotHost hostContext={hostContext} features={features} />
     </>
   );

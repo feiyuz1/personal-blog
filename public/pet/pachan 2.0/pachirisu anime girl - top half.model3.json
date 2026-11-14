@@ -2,7 +2,7 @@
   "Version": 3,
   "FileReferences": {
     "Moc": "pachirisu anime girl - top half.moc3",
-    "Textures": ["pachirisu anime girl - top half.4096/texture_00.png"],
+    "Textures": ["textures/texture_00.webp"],
     "Expressions": [
       { "Name": "neutral", "File": "expressions/neutral.exp3.json" },
       { "Name": "shy", "File": "expressions/shy.exp3.json" },
