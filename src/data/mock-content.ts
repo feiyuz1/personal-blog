@@ -9,21 +9,11 @@ export const siteConfig: SiteConfig = {
   navItems: [
     { label: "首页", href: "/", description: "回到博客首页" },
     { label: "博客", href: "/blog", description: "浏览全部文章" },
-    { label: "分类", href: "/categories", description: "按分类查看" },
     { label: "归档", href: "/archive", description: "按时间归档" },
     { label: "项目", href: "/projects", description: "项目作品集" },
     { label: "关于我", href: "/about", description: "了解更多" },
-    { label: "联系我", href: "/contact", description: "取得联系" },
   ],
-  footerLinks: [
-    {
-      label: "GitHub",
-      href: "https://github.com/",
-      description: "我的 GitHub 主页",
-    },
-    { label: "RSS 订阅", href: "/api/rss", description: "RSS 源" },
-    { label: "后台入口", href: "/admin", description: "管理后台" },
-  ],
+  footerLinks: [],
   stats: [
     { label: "文章", value: "10+", hint: "持续更新中" },
     { label: "项目", value: "4", hint: "涵盖多个领域" },
@@ -119,28 +109,15 @@ export const aboutSections: AboutSection[] = [
   },
 ];
 
-export const contactChannels: ContactChannel[] = [
+export const contactChannels: Array<ContactChannel & { href: string }> = [
   {
     label: "电子邮箱",
-    value: "hello@feiyuz.dev",
-    href: "mailto:hello@feiyuz.dev",
-    note: "首选联系方式，适合技术咨询、合作邀约和一般性交流，通常在 24 小时内回复。",
+    value: "feiyulab@163.com",
+    href: "mailto:feiyulab@163.com",
   },
   {
     label: "GitHub",
-    value: "github.com/feiyuz",
-    href: "https://github.com/",
-    note: "开源项目、代码实验和技术仓库的主页，欢迎 Star 和 Issue。",
-  },
-  {
-    label: "微信公众号",
-    value: "FeiyuzTech",
-    note: "不定期推送精选技术文章和思考随笔，扫码关注获取最新动态。（二维码占位）",
-  },
-  {
-    label: "留言板",
-    value: "评论区骨架已预留",
-    href: "/contact",
-    note: "也可以直接在本站留言，后续会接入评论系统和通知邮件。",
+    value: "github.com/feiyuz1",
+    href: "https://github.com/feiyuz1",
   },
 ];

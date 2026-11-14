@@ -2,6 +2,7 @@ import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
 import { TechStackGrid } from "@/components/ui/tech-stack-grid";
 import { Timeline } from "@/components/ui/timeline";
+import { contactChannels } from "@/data/mock-content";
 import type {
   AboutSection,
   ProfileInfo,
@@ -48,6 +49,34 @@ export function AboutPage({
           </Panel>
         ))}
       </div>
+
+      <section
+        id="contact"
+        aria-labelledby="contact-heading"
+        className="scroll-mt-32 rounded-[1.5rem] border border-black/5 bg-white/80 p-6 shadow-[0_18px_44px_rgba(34,58,45,0.06)]"
+      >
+        <h2
+          id="contact-heading"
+          className="mb-4 text-xl font-semibold text-slate-900"
+        >
+          联系我
+        </h2>
+        <dl className="grid gap-4 sm:grid-cols-2">
+          {contactChannels.map(({ label, value, href }) => (
+            <div key={label} className="space-y-1">
+              <dt className="text-sm font-medium text-slate-600">{label}</dt>
+              <dd className="text-sm wrap-anywhere">
+                <a
+                  href={href}
+                  className="font-medium text-emerald-800 underline decoration-emerald-800/30 underline-offset-4 hover:decoration-current"
+                >
+                  {value}
+                </a>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 }

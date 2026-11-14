@@ -49,7 +49,7 @@ export function ProjectsPage({ projects }: { projects: ProjectDetail[] }) {
           <p>
             如果你对某个项目的技术选型或实现细节感兴趣，欢迎通过{" "}
             <Link
-              href="/contact"
+              href="/about#contact"
               className="font-medium text-emerald-800 hover:underline"
             >
               联系方式

@@ -18,6 +18,7 @@ export function SiteHeader({
 }) {
   const navItems = new Map(QUICK_LINKS.map(({ href, label }) => [href, label]));
   for (const { href, label } of config.navItems) {
+    if (href === "/contact" || href === "/categories") continue;
     if (!navItems.has(href) && (showSearchLink || href !== "/search")) {
       navItems.set(href, label);
     }

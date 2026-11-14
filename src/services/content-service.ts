@@ -10,7 +10,6 @@ import type {
   AboutSection,
   ArchiveGroup,
   CategorySummary,
-  ContactChannel,
   PostDetail,
   PostSummary,
   ProjectDetail,
@@ -24,7 +23,6 @@ import type {
 const CONTENT_BLOCK_KEYS = {
   siteConfig: "site-config",
   aboutSections: "about-sections",
-  contactChannels: "contact-channels",
   profileInfo: "profile-info",
   techStacks: "tech-stacks",
   timeline: "timeline",
@@ -36,7 +34,6 @@ type ContentBlockKey =
 type ContentBlockMap = {
   [CONTENT_BLOCK_KEYS.siteConfig]: SiteConfig;
   [CONTENT_BLOCK_KEYS.aboutSections]: AboutSection[];
-  [CONTENT_BLOCK_KEYS.contactChannels]: ContactChannel[];
   [CONTENT_BLOCK_KEYS.profileInfo]: ProfileInfo;
   [CONTENT_BLOCK_KEYS.techStacks]: TechStackCategory[];
   [CONTENT_BLOCK_KEYS.timeline]: TimelineItem[];
@@ -518,53 +515,6 @@ export async function getProjectBySlug(
 
 export async function getAboutSections(): Promise<AboutSection[]> {
   return (await loadContentBlock(CONTENT_BLOCK_KEYS.aboutSections)) ?? [];
-}
-
-export async function getContactChannels(): Promise<ContactChannel[]> {
-  const [contentChannels, settings] = await Promise.all([
-    loadContentBlock(CONTENT_BLOCK_KEYS.contactChannels),
-    prisma.siteSetting.findFirst({ orderBy: { id: "asc" } }),
-  ]);
-
-  const channels = contentChannels ?? [];
-  const socialLinks = settings?.socialLinks;
-  if (
-    !socialLinks ||
-    Array.isArray(socialLinks) ||
-    typeof socialLinks !== "object"
-  ) {
-    return channels;
-  }
-
-  const links = socialLinks as Record<string, unknown>;
-  const configuredChannels: ContactChannel[] = [];
-  const email = typeof links.email === "string" ? links.email.trim() : "";
-  if (email) {
-    configuredChannels.push({
-      label: "电子邮箱",
-      value: email,
-      href: `mailto:${email}`,
-      note: "欢迎通过邮件进行技术交流与合作沟通。",
-    });
-  }
-
-  for (const [key, value] of Object.entries(links)) {
-    if (key === "email" || typeof value !== "string" || !value.trim()) continue;
-    configuredChannels.push({
-      label: key,
-      value: value.trim(),
-      href: value.trim(),
-    });
-  }
-
-  // 后台社交链接优先，内容块里的同类渠道不重复显示。
-  const configuredLabels = new Set(
-    configuredChannels.map((channel) => channel.label),
-  );
-  return [
-    ...configuredChannels,
-    ...channels.filter((channel) => !configuredLabels.has(channel.label)),
-  ];
 }
 
 export async function getProfileInfo(): Promise<ProfileInfo> {
