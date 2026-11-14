@@ -1,11 +1,10 @@
 import Link from "next/link";
 
 import { PostCard } from "@/components/content/post-card";
+import { PostSearch } from "@/components/content/post-search";
 import { Panel } from "@/components/ui/panel";
 import { Pill } from "@/components/ui/pill";
 import type { CategorySummary, PostSummary, TagSummary } from "@/types/content";
-
-import { HomeSearch } from "./home-search";
 
 type HomeOverview = {
   featuredPosts: PostSummary[];
@@ -30,7 +29,11 @@ export function HomePage({
     }) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-6 md:px-10 md:py-8">
-      <HomeSearch key={search?.keyword ?? ""} keyword={search?.keyword ?? ""} />
+      <PostSearch
+        key={search?.keyword ?? ""}
+        action="/"
+        keyword={search?.keyword ?? ""}
+      />
       {search ? (
         <section aria-labelledby="search-results-heading" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">

@@ -5,6 +5,7 @@ import {
   listCategories,
   listPosts,
   listTags,
+  searchPosts,
 } from "@/services/content-service";
 import type { Metadata } from "next";
 
@@ -14,17 +15,28 @@ export const metadata: Metadata = {
     "浏览全部技术文章，涵盖 Next.js、TypeScript、React、PostgreSQL 等主题。按时间倒序排列，支持分类和标签筛选。",
 };
 
-export default async function BlogPage() {
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ keyword?: string | string[] }>;
+}) {
+  const { keyword } = await searchParams;
+  const query = typeof keyword === "string" ? keyword.trim() : "";
   const [config, posts, categories, tags] = await Promise.all([
     getSiteConfig(),
-    listPosts(),
+    query ? searchPosts(query) : listPosts(),
     listCategories(),
     listTags(),
   ]);
 
   return (
-    <SiteShell config={config}>
-      <PostListPage posts={posts} categories={categories} tags={tags} />
+    <SiteShell config={config} showSearchLink={false}>
+      <PostListPage
+        posts={posts}
+        categories={categories}
+        tags={tags}
+        keyword={query}
+      />
     </SiteShell>
   );
 }

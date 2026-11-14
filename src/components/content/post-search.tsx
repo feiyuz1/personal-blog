@@ -14,7 +14,13 @@ type Suggestions = {
   failed?: boolean;
 };
 
-export function HomeSearch({ keyword }: { keyword: string }) {
+export function PostSearch({
+  action,
+  keyword,
+}: {
+  action: "/" | "/blog";
+  keyword: string;
+}) {
   const router = useRouter();
   const inputId = useId();
   const [input, setInput] = useState(keyword);
@@ -64,13 +70,15 @@ export function HomeSearch({ keyword }: { keyword: string }) {
     setOpen(false);
     setInput(query);
     if (query !== keyword) {
-      router.push(`/?keyword=${encodeURIComponent(query)}`, { scroll: false });
+      router.push(`${action}?keyword=${encodeURIComponent(query)}`, {
+        scroll: false,
+      });
     }
   }
 
   return (
     <form
-      action="/"
+      action={action}
       role="search"
       aria-label="搜索文章"
       className="relative z-10 w-full max-w-2xl"

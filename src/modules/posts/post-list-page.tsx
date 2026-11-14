@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PostCard } from "@/components/content/post-card";
+import { PostSearch } from "@/components/content/post-search";
 import { PageHero } from "@/components/ui/page-hero";
 import { Panel } from "@/components/ui/panel";
 import { Pill } from "@/components/ui/pill";
@@ -37,10 +38,12 @@ export function PostListPage({
   posts,
   categories,
   tags,
+  keyword,
 }: {
   posts: PostSummary[];
   categories: CategorySummary[];
   tags: TagSummary[];
+  keyword: string;
 }) {
   const months = groupPostsByMonth(posts);
 
@@ -51,6 +54,20 @@ export function PostListPage({
         title="全部文章"
         description="记录技术思考、项目复盘和学习笔记。按时间倒序排列，持续更新中。"
       />
+
+      <PostSearch key={keyword} action="/blog" keyword={keyword} />
+
+      {keyword && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold text-slate-900">搜索结果</h2>
+          <Link
+            href="/blog"
+            className="text-sm font-medium text-emerald-800 hover:underline"
+          >
+            清除搜索
+          </Link>
+        </div>
+      )}
 
       <div
         id="archive"
@@ -101,6 +118,8 @@ export function PostListPage({
                 ))}
               </section>
             ))
+          ) : keyword ? (
+            <p className="text-sm text-slate-600">没有找到匹配的文章。</p>
           ) : (
             <div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-12 text-center">
               <p className="text-lg font-semibold text-slate-900">
