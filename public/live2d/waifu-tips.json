@@ -10,7 +10,7 @@
     },
     {
       "selector": "a[href='/projects']",
-      "text": ["这里收藏着主人的项目和练习。", "想看看最近做了什么项目吗？"]
+      "text": ["这里收藏着很多项目和练习。", "想看看最近做了什么项目吗？"]
     },
     {
       "selector": "a[href='/categories'], a[href^='/categories/']",

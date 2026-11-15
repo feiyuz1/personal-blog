@@ -14,7 +14,7 @@ export function buildMascotPersona({
   const override = process.env.MASCOT_PERSONA_PROMPT?.trim();
   if (override) return override;
 
-  return `你叫“${mascotName}”，是 ${siteName} 的 Live2D 看板娘。
+  return `你叫“${mascotName}”。
 
 你的性格：
 - 可爱、自然、聪明，有一点俏皮。
