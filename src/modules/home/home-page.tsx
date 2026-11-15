@@ -88,7 +88,7 @@ function Overview({
 
         <div className="space-y-6">
           {/* 分类快速入口 */}
-          <Panel title="分类浏览" description="按主题分类查看文章">
+          <Panel title="分类浏览">
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
                 <Link key={category.slug} href={`/categories/${category.slug}`}>
@@ -99,7 +99,7 @@ function Overview({
           </Panel>
 
           {/* 热门标签 */}
-          <Panel title="热门标签" description="探索你感兴趣的技术话题">
+          <Panel title="热门标签">
             <div className="flex flex-wrap gap-2">
               {tags.slice(0, 8).map((tag) => (
                 <Link key={tag.slug} href={`/tags/${tag.slug}`}>
